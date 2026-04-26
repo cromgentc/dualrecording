@@ -41,6 +41,10 @@ Environment variables:
 
 - `VITE_API_URL`: your deployed backend URL, for example `https://dualrecord-backend.onrender.com`
 
+The frontend reads the API base URL from one place: `frontend/src/lib/api.js`.
+For Vercel or Render frontend deployments, set `VITE_API_URL` to the backend URL.
+If `VITE_API_URL` is not set, production builds fall back to `https://dualrecord-backend.onrender.com`.
+
 ### Common Render mistake
 
 If you see:

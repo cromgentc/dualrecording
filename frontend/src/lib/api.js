@@ -1,4 +1,9 @@
-export const API_BASE_URL = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
+const DEFAULT_PRODUCTION_API_URL = 'https://dualrecord-backend.onrender.com'
+
+export const API_BASE_URL = (
+  import.meta.env.VITE_API_URL ||
+  (import.meta.env.PROD ? DEFAULT_PRODUCTION_API_URL : '')
+).replace(/\/$/, '')
 
 // Central list of API paths keeps pages from hard-coding route strings in new code.
 export const API_ENDPOINTS = {
