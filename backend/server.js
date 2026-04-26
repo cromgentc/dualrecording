@@ -2,7 +2,7 @@ require('dotenv').config()
 
 const http = require('http')
 const routes = require('./routes')
-const { handleCors, sendJson, getRequestContext } = require('./lib/http')
+const { setCorsHeaders, handleCors, sendJson, getRequestContext } = require('./lib/http')
 const { connectDatabase } = require('./lib/database')
 const { cleanupExpiredChallenges } = require('./models/otpChallengeModel')
 const { getSessionCount } = require('./models/sessionModel')
@@ -45,6 +45,8 @@ function matchRoute(req, pathname) {
 }
 
 const server = http.createServer((req, res) => {
+  setCorsHeaders(req, res)
+
   // OPTIONS requests finish here so every API endpoint gets the same CORS behavior.
   if (handleCors(req, res)) {
     return

@@ -1,10 +1,41 @@
+const DEFAULT_ALLOWED_ORIGINS = [
+  'https://dualrecording.vercel.app',
+  'https://dualrecord-frontend.onrender.com',
+]
+
+function getAllowedOrigins() {
+  return [
+    ...DEFAULT_ALLOWED_ORIGINS,
+    ...(process.env.APP_ORIGIN || '')
+      .split(',')
+      .map((origin) => origin.trim())
+      .filter(Boolean),
+  ]
+}
+
+function getCorsOrigin(req) {
+  const requestOrigin = req.headers.origin
+  if (!requestOrigin) {
+    return '*'
+  }
+
+  return getAllowedOrigins().includes(requestOrigin) ? requestOrigin : '*'
+}
+
+function setCorsHeaders(req, res) {
+  res.setHeader('Access-Control-Allow-Origin', getCorsOrigin(req))
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS')
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    req.headers['access-control-request-headers'] || 'Content-Type, Authorization',
+  )
+  res.setHeader('Vary', 'Origin, Access-Control-Request-Headers')
+}
+
 // Small response helpers keep every controller's JSON/CORS headers consistent.
 function sendJson(res, statusCode, payload) {
   res.writeHead(statusCode, {
     'Content-Type': 'application/json; charset=utf-8',
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET,POST,DELETE,OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
   })
   res.end(JSON.stringify(payload))
 }
@@ -12,7 +43,6 @@ function sendJson(res, statusCode, payload) {
 function sendText(res, statusCode, message) {
   res.writeHead(statusCode, {
     'Content-Type': 'text/plain; charset=utf-8',
-    'Access-Control-Allow-Origin': '*',
   })
   res.end(message)
 }
@@ -23,11 +53,8 @@ function handleCors(req, res) {
     return false
   }
 
-  res.writeHead(204, {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET,POST,DELETE,OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-  })
+  setCorsHeaders(req, res)
+  res.writeHead(204)
   res.end()
   return true
 }
@@ -62,6 +89,7 @@ function getRequestContext(req, port) {
 }
 
 module.exports = {
+  setCorsHeaders,
   sendJson,
   sendText,
   handleCors,

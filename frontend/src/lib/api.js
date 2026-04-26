@@ -1,4 +1,4 @@
-const DEFAULT_PRODUCTION_API_URL = 'https://dualrecord-backend.onrender.com'
+const DEFAULT_PRODUCTION_API_URL = 'https://dualrecording.onrender.com/'
 
 export const API_BASE_URL = (
   import.meta.env.VITE_API_URL ||

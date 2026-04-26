@@ -25,7 +25,7 @@ Environment variables:
 - `CLOUD_NAME`
 - `API_KEY`
 - `API_SECRET`
-- `APP_ORIGIN`: your deployed frontend URL, for example `https://dualrecord-frontend.onrender.com`
+- `APP_ORIGIN`: your deployed frontend URL, for example `https://dualrecording.vercel.app`
 
 Do not set `PORT` on Render. Render provides it automatically.
 
