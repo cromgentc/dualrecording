@@ -17,6 +17,7 @@ const {
   getRecordingPath,
   getRecordingByFileName,
 } = require('../models/sessionModel')
+const { getUserById } = require('../models/userModel')
 const { listScriptsForUser } = require('../models/scriptModel')
 
 function getRequestOrigin(req, port) {
@@ -89,6 +90,28 @@ async function getAssignedScript(req, res) {
   }
 
   sendJson(res, 200, { script: getNextScriptForUser(auth.user) })
+}
+
+async function getNextSessionScript(req, res, context, params) {
+  const session = ensureSession(params.sessionId, res)
+  if (!session) {
+    return
+  }
+
+  const role = context.searchParams.get('role')
+  const token = context.searchParams.get('token')
+  if (!validateRoleToken(session, role, token)) {
+    sendJson(res, 403, { error: 'Invalid access token.' })
+    return
+  }
+
+  const owner = getUserById(session.ownerUserId)
+  if (!owner) {
+    sendJson(res, 404, { error: 'Session owner not found.' })
+    return
+  }
+
+  sendJson(res, 200, { script: getNextScriptForUser(owner) })
 }
 
 function getNextScriptForUser(user) {
@@ -316,6 +339,7 @@ module.exports = {
   listSessions,
   createSessionAction,
   getAssignedScript,
+  getNextSessionScript,
   getSession,
   joinParticipant,
   pingParticipant,

@@ -1,5 +1,4 @@
-import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react'
-import StatusPill from '../components/StatusPill'
+import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } from 'react'
 import ToastMessage from '../components/ToastMessage'
 import UserBar from '../components/UserBar'
 import {
@@ -22,6 +21,26 @@ function formatDuration(totalSeconds) {
   return `${hours}:${minutes}:${seconds}`
 }
 
+function SpeakerMiniCard({ active, label, participant }) {
+  return (
+    <div
+      className={`min-w-0 rounded-2xl border px-3 py-3 ${
+        active ? 'border-amber-300/40 bg-amber-300/10' : 'border-white/10 bg-white/5'
+      }`}
+    >
+      <span className="block text-[0.58rem] font-semibold uppercase tracking-[0.16em] text-stone-400">
+        {label}
+      </span>
+      <strong className="mt-1 block truncate text-xs font-semibold text-stone-50">
+        {participant?.label || 'Waiting'}
+      </strong>
+      <span className={participant?.joined ? 'mt-2 block text-[0.65rem] font-semibold text-emerald-200' : 'mt-2 block text-[0.65rem] font-semibold text-stone-400'}>
+        {participant?.joined ? 'Joined' : 'Waiting'}
+      </span>
+    </div>
+  )
+}
+
 function StudioPage({ sessionId, role, token, user, onLogout }) {
   // Studio behavior changes by role: host creates offers and controls recording.
   const isHost = role === 'host'
@@ -33,7 +52,7 @@ function StudioPage({ sessionId, role, token, user, onLogout }) {
   const [loading, setLoading] = useState(true)
   const [joinBusy, setJoinBusy] = useState(false)
   const [error, setError] = useState('')
-  const [activity, setActivity] = useState('Studio ready. Join karte hi mic connect hoga.')
+  const [activity, setActivity] = useState('Studio ready. Join to connect your microphone.')
   const [joined, setJoined] = useState(false)
   const [connected, setConnected] = useState(false)
   const [remoteReady, setRemoteReady] = useState(false)
@@ -41,6 +60,7 @@ function StudioPage({ sessionId, role, token, user, onLogout }) {
   const [recording, setRecording] = useState(false)
   const [durationSeconds, setDurationSeconds] = useState(0)
   const [nextScript, setNextScript] = useState(null)
+  const [currentScriptVisible, setCurrentScriptVisible] = useState(true)
   const [uploads, setUploads] = useState({
     host: 'idle',
     guest: 'idle',
@@ -84,6 +104,7 @@ function StudioPage({ sessionId, role, token, user, onLogout }) {
         `/api/sessions/${sessionId}?role=${role}&token=${token}`,
       )
       setSession(nextSession)
+      setCurrentScriptVisible(nextSession.recordingState !== 'ready')
       setDisplayName((current) => current || nextSession.participants[role].label)
     } catch (loadError) {
       setError(loadError.message)
@@ -268,24 +289,55 @@ function StudioPage({ sessionId, role, token, user, onLogout }) {
     }, 1000)
   }
 
-  async function loadNextScriptPreview() {
-    const authToken = window.localStorage.getItem(AUTH_TOKEN_KEY) || ''
-    if (!authToken) {
+  const scheduleStudioRefreshOnce = useCallback(() => {
+    const refreshKey = `studio-refresh-after-ready-${sessionId}`
+    if (window.sessionStorage.getItem(refreshKey)) {
       return
     }
 
+    window.sessionStorage.setItem(refreshKey, '1')
+    window.setTimeout(() => {
+      window.location.reload()
+    }, 1800)
+  }, [sessionId])
+
+  const loadNextScriptPreview = useCallback(async () => {
+    const authToken = window.localStorage.getItem(AUTH_TOKEN_KEY) || ''
+
     try {
-      const payload = await apiRequest('/api/scripts/assigned', { authToken })
+      const payload = await apiRequest(
+        `/api/sessions/${sessionId}/scripts/next?role=${role}&token=${token}`,
+        authToken ? { authToken } : {},
+      )
       setNextScript(payload.script || null)
+      setCurrentScriptVisible(false)
       setActivity(
         payload.script
-          ? 'Recording upload complete. Next script ready hai.'
-          : 'Recording upload complete. Ab koi pending script nahi hai.',
+          ? 'Recording upload complete. The next script is ready.'
+          : 'All assigned scripts are complete. Please contact your admin for more work.',
       )
+      scheduleStudioRefreshOnce()
     } catch (nextScriptError) {
-      setError(nextScriptError.message)
+      if (!authToken) {
+        setError(nextScriptError.message)
+        return
+      }
+
+      try {
+        const payload = await apiRequest('/api/scripts/assigned', { authToken })
+        setNextScript(payload.script || null)
+        setCurrentScriptVisible(false)
+        setActivity(
+          payload.script
+            ? 'Recording upload complete. The next script is ready.'
+            : 'All assigned scripts are complete. Please contact your admin for more work.',
+        )
+        scheduleStudioRefreshOnce()
+      } catch (fallbackError) {
+        setError(fallbackError.message)
+      }
     }
-  }
+  }, [role, scheduleStudioRefreshOnce, sessionId, token])
 
   function uploadBlobWithProgress(track, blob) {
     return new Promise((resolve, reject) => {
@@ -346,7 +398,7 @@ function StudioPage({ sessionId, role, token, user, onLogout }) {
             }
           : current,
       )
-      setActivity(`${track} track upload ho gaya.`)
+      setActivity(`${track} track uploaded.`)
     } catch (uploadError) {
       setUploads((current) => ({ ...current, [track]: 'error' }))
       setError(uploadError.message)
@@ -391,6 +443,7 @@ function StudioPage({ sessionId, role, token, user, onLogout }) {
     autoStopTriggeredRef.current = false
     nextScriptLoadedForSessionRef.current = ''
     setNextScript(null)
+    setCurrentScriptVisible(true)
     setUploads({
       host: 'idle',
       guest: 'idle',
@@ -406,10 +459,10 @@ function StudioPage({ sessionId, role, token, user, onLogout }) {
       await sendSignal('control', { action: 'start-recording' })
     }
 
-    setActivity('Recording 3 second countdown ke baad start hogi.')
+    setActivity('Recording will start after a 3 second countdown.')
     await startRecordingCountdown()
     if (recordingStartCancelledRef.current) {
-      setActivity('Recording start cancel ho gaya.')
+      setActivity('Recording start was cancelled.')
       return
     }
 
@@ -428,7 +481,7 @@ function StudioPage({ sessionId, role, token, user, onLogout }) {
     recordingActiveRef.current = true
     setRecording(true)
     startDurationTimer()
-    setActivity('Recording live hai. Browser tracks capture kar raha hai.')
+    setActivity('Recording is live. Browser tracks are being captured.')
   }
 
   async function stopRecording({ notifyPeer = false } = {}) {
@@ -450,7 +503,7 @@ function StudioPage({ sessionId, role, token, user, onLogout }) {
     recordersRef.current = {}
     recordingActiveRef.current = false
     setRecording(false)
-    setActivity('Recording stop hui. Uploads process ho rahe hain.')
+    setActivity('Recording stopped. Uploads are processing.')
 
     if (notifyPeer && isHost) {
       await sendSignal('control', { action: 'stop-recording' })
@@ -472,14 +525,14 @@ function StudioPage({ sessionId, role, token, user, onLogout }) {
       const answer = await pc.createAnswer()
       await pc.setLocalDescription(answer)
       await sendSignal('answer', answer)
-      setActivity('Host ke saath connection establish ho raha hai.')
+      setActivity('Connecting with the host.')
       return
     }
 
     if (signal.type === 'answer' && pc && isHost && pc.signalingState !== 'stable') {
       await pc.setRemoteDescription(new RTCSessionDescription(signal.payload))
       await flushPendingCandidates()
-      setActivity('Guest connected. Live monitoring active hai.')
+      setActivity('Guest connected. Live monitoring is active.')
       return
     }
 
@@ -499,6 +552,17 @@ function StudioPage({ sessionId, role, token, user, onLogout }) {
       }
       if (signal.payload?.action === 'stop-recording') {
         await stopRecording()
+      }
+      if (signal.payload?.action === 'host-logout') {
+        cleanupStudio()
+        setJoined(false)
+        setConnected(false)
+        setRemoteReady(false)
+        setCurrentScriptVisible(false)
+        setActivity('Host logged out. Redirecting to login.')
+        window.localStorage.removeItem(AUTH_TOKEN_KEY)
+        window.history.replaceState({}, '', '/')
+        window.location.assign('/')
       }
     }
   })
@@ -538,7 +602,7 @@ function StudioPage({ sessionId, role, token, user, onLogout }) {
 
     nextScriptLoadedForSessionRef.current = session.id
     void loadNextScriptPreview()
-  }, [session])
+  }, [loadNextScriptPreview, session])
 
   function createPeerConnection(stream) {
     // The peer connection carries only audio tracks for this recording room.
@@ -569,7 +633,7 @@ function StudioPage({ sessionId, role, token, user, onLogout }) {
       setConnected(connectedNow)
 
       if (connectedNow) {
-        setActivity('Dono speakers live audio room mein connected hain.')
+        setActivity('Both speakers can hear each other. Recording will start only when the host starts it.')
       }
     }
 
@@ -590,7 +654,7 @@ function StudioPage({ sessionId, role, token, user, onLogout }) {
       })
       await pcRef.current.setLocalDescription(offer)
       await sendSignal('offer', offer)
-      setActivity('Invite room ready hai. Guest answer dete hi call connect ho jayegi.')
+      setActivity('Invite room is ready. The call will connect when the guest answers.')
     } finally {
       makingOfferRef.current = false
     }
@@ -664,7 +728,7 @@ function StudioPage({ sessionId, role, token, user, onLogout }) {
 
       setSession(nextSession)
       setJoined(true)
-      setActivity('Mic connected. Ab signaling aur room setup start ho gaya hai.')
+      setActivity('Microphone connected. Live audio room is starting. Recording is not active yet.')
 
       if (isHost) {
         await createAndSendOffer()
@@ -677,11 +741,37 @@ function StudioPage({ sessionId, role, token, user, onLogout }) {
     }
   }
 
+  async function handleStudioLogout() {
+    try {
+      if (isHost) {
+        if (recordingActiveRef.current || countdown) {
+          await stopRecording({ notifyPeer: true })
+        }
+        await sendSignal('control', { action: 'host-logout' })
+      }
+      cleanupStudio()
+      setJoined(false)
+      setConnected(false)
+      setRemoteReady(false)
+      setCurrentScriptVisible(false)
+      await loadNextScriptPreview()
+    } catch (logoutError) {
+      setError(logoutError.message)
+    } finally {
+      window.setTimeout(() => {
+        window.localStorage.removeItem(AUTH_TOKEN_KEY)
+        void onLogout()
+        window.history.replaceState({}, '', '/')
+        window.location.assign('/')
+      }, 800)
+    }
+  }
+
   if (loading) {
     return (
       <main className="page-shell py-8">
         <div className="glass-card p-8 text-center text-stone-200">
-          Studio load ho raha hai...
+          Loading studio...
         </div>
       </main>
     )
@@ -698,7 +788,7 @@ function StudioPage({ sessionId, role, token, user, onLogout }) {
   }
 
   return (
-    <main className="page-shell py-8">
+    <main className="page-shell overflow-x-hidden py-4 sm:py-8">
       <ToastMessage
         message={error || activity}
         tone={error ? 'error' : 'default'}
@@ -707,86 +797,77 @@ function StudioPage({ sessionId, role, token, user, onLogout }) {
           setActivity('')
         }}
       />
-      {user ? <UserBar user={user} onLogout={onLogout} /> : null}
+      {user ? <UserBar user={user} onLogout={handleStudioLogout} compact /> : null}
 
-      <section className="glass-card flex min-h-[56vh] items-center justify-center p-8 text-center">
-        <strong className="block text-7xl font-semibold tabular-nums tracking-normal text-stone-50 sm:text-8xl lg:text-9xl">
-          {countdown ? countdown : formatDuration(durationSeconds)}
-        </strong>
-      </section>
-
-      <section>
-        <div className="glass-card mt-6 p-7">
-          <div>
-            <p className="eyebrow">Identity</p>
-            <h2 className="text-3xl font-semibold tracking-tight text-stone-50">
-              {session.title}
-            </h2>
-          </div>
-
-          <div className="mt-6 grid gap-3">
-            <div className="info-card">
-              <span className="eyebrow">Recording Upload</span>
-              <div className="mt-3 grid gap-3">
-                {uploadTracks.map((track) => (
-                  <div key={track}>
-                    <div className="flex items-center justify-between gap-3 text-sm">
-                      <strong className="font-semibold capitalize text-stone-50">
-                        {track === 'mixed' ? 'Mixed' : track}
-                      </strong>
-                      <span className="text-stone-300">
-                        {uploads[track] === 'done'
-                          ? '100%'
-                          : uploads[track] === 'uploading'
-                            ? `${uploadProgress[track]}%`
-                            : uploads[track] === 'error'
-                              ? 'Failed'
-                              : 'Waiting'}
-                      </span>
+      <section className="min-w-0">
+        <div className="glass-card min-w-0 overflow-hidden p-4 sm:p-7">
+          <div className="grid min-w-0 gap-3">
+            <div className="grid min-w-0 gap-3 rounded-3xl border border-white/10 bg-white/6 p-3">
+              <div className="min-w-0 rounded-2xl border border-white/10 bg-white/5 p-3">
+                <span className="eyebrow">Recording Upload</span>
+                <div className="mt-3 grid min-w-0 gap-3">
+                  {uploadTracks.map((track) => (
+                    <div className="min-w-0" key={track}>
+                      <div className="flex min-w-0 items-center justify-between gap-3 text-sm">
+                        <strong className="min-w-0 truncate font-semibold capitalize text-stone-50">
+                          {track === 'mixed' ? 'Mixed' : track}
+                        </strong>
+                        <span className="shrink-0 text-stone-300">
+                          {uploads[track] === 'done'
+                            ? '100%'
+                            : uploads[track] === 'uploading'
+                              ? `${uploadProgress[track]}%`
+                              : uploads[track] === 'error'
+                                ? 'Failed'
+                                : 'Waiting'}
+                        </span>
+                      </div>
+                      <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/10">
+                        <div
+                          className="h-full rounded-full bg-amber-300 transition-all"
+                          style={{ width: `${uploadProgress[track]}%` }}
+                        />
+                      </div>
                     </div>
-                    <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/10">
-                      <div
-                        className="h-full rounded-full bg-amber-300 transition-all"
-                        style={{ width: `${uploadProgress[track]}%` }}
-                      />
-                    </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-2xl bg-slate-950/80 px-3 py-4 text-center">
+                <strong className="block text-3xl font-semibold tabular-nums tracking-normal text-stone-50 sm:text-4xl">
+                  {countdown ? countdown : formatDuration(durationSeconds)}
+                </strong>
+                <span className="mt-1 block text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-stone-400">
+                  {recording ? 'Live' : 'Timer'}
+                </span>
+              </div>
+              <div className="grid min-w-0 grid-cols-2 gap-2">
+                <SpeakerMiniCard
+                  label="Speaker 1"
+                  participant={session.participants.host}
+                  active={role === 'host'}
+                />
+                <SpeakerMiniCard
+                  label="Speaker 2"
+                  participant={session.participants.guest}
+                  active={role === 'guest'}
+                />
               </div>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2">
-              {['host', 'guest'].map((participantRole) => {
-                const participant = session.participants[participantRole]
-                return (
-                  <div className="info-card" key={participantRole}>
-                    <span className="eyebrow">
-                      {participantRole === 'host' ? 'Speaker 1' : 'Speaker 2'}
-                    </span>
-                    <strong className="mt-2 block text-sm font-semibold text-stone-50">
-                      {participant?.label || 'Not set'}
-                    </strong>
-                    <StatusPill tone={participant?.joined ? 'success' : 'muted'}>
-                      {participant?.joined ? 'Joined' : 'Not joined'}
-                    </StatusPill>
-                  </div>
-                )
-              })}
-            </div>
-
-            {session.scriptText ? (
-              <div className="info-card">
+            {currentScriptVisible && session.scriptText ? (
+              <div className="info-card min-w-0 overflow-hidden">
                 <span className="eyebrow">{session.scriptTitle || 'Assigned Script'}</span>
-                <p className="mt-3 whitespace-pre-wrap text-left text-sm leading-6 text-stone-200">
+                <p className="mt-3 max-w-full whitespace-pre-wrap break-all text-left text-sm leading-6 text-stone-200 [overflow-wrap:anywhere]">
                   {session.scriptText}
                 </p>
               </div>
             ) : null}
 
             {nextScript ? (
-              <div className="info-card border-amber-300/40">
+              <div className="info-card min-w-0 overflow-hidden border-amber-300/40">
                 <span className="eyebrow">Next Script</span>
-                <strong className="mt-2 block text-lg font-semibold text-stone-50">
+                <strong className="mt-2 block max-w-full break-all text-lg font-semibold text-stone-50 [overflow-wrap:anywhere]">
                   {nextScript.title}
                 </strong>
                 <div className="mt-3 grid gap-3 sm:grid-cols-2">
@@ -797,8 +878,17 @@ function StudioPage({ sessionId, role, token, user, onLogout }) {
                     Speaker 2: {nextScript.speaker2Label || 'Speaker 2'}
                   </span>
                 </div>
-                <p className="mt-3 whitespace-pre-wrap text-left text-sm leading-6 text-stone-200">
+                <p className="mt-3 max-w-full whitespace-pre-wrap break-all text-left text-sm leading-6 text-stone-200 [overflow-wrap:anywhere]">
                   {nextScript.script}
+                </p>
+              </div>
+            ) : null}
+
+            {!nextScript && !currentScriptVisible ? (
+              <div className="info-card min-w-0 overflow-hidden border-amber-300/40">
+                <span className="eyebrow">No Pending Script</span>
+                <p className="mt-3 text-sm leading-6 text-stone-200">
+                  All assigned scripts are complete. Please contact your admin for more work.
                 </p>
               </div>
             ) : null}
@@ -807,10 +897,12 @@ function StudioPage({ sessionId, role, token, user, onLogout }) {
               {joined
                 ? connected
                   ? remoteReady
-                    ? 'Mic granted. Peer connected. Remote audio live.'
-                    : 'Mic granted. Peer connected. Remote audio ka wait ho raha hai.'
-                  : 'Mic granted. Peer connection ka wait ho raha hai.'
-                : 'Join karte hi mic aur peer connection status yahin update hoga.'}
+                    ? recording
+                      ? 'Recording is active. Keep speaking clearly.'
+                      : 'Live audio is connected. Recording has not started yet.'
+                    : 'Mic granted. Peer connected. Waiting for remote audio.'
+                  : 'Mic granted. Waiting for the peer connection.'
+                : 'Join the room to connect your microphone and start setup.'}
             </p>
           </div>
 
@@ -844,7 +936,7 @@ function StudioPage({ sessionId, role, token, user, onLogout }) {
             </div>
           ) : (
             <p className="mt-4 text-sm text-stone-300">
-              Guest side par recording host ke control signal se start/stop hogi.
+              Guest recording starts and stops from the host controls.
             </p>
           )}
 

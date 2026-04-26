@@ -1496,6 +1496,7 @@ function UsersManagementTable({
             {users.map((item) => {
               const isSuspended = item.status === 'suspended'
               const scriptStats = scriptStatsByUserId[item.id] || { assigned: 0, pending: 0 }
+              const isAdminUser = item.role === 'admin'
               return (
                 <tr className="border-t border-white/10" key={item.id}>
                   <td className="px-4 py-3 font-semibold text-stone-50">{item.name}</td>
@@ -1516,18 +1517,22 @@ function UsersManagementTable({
                   </td>
                   <td className="px-4 py-3">{item.vendorCode || '-'}</td>
                   <td className="px-4 py-3">
-                    <select
-                      className="field min-w-52 py-2"
-                      value={item.vendorId || ''}
-                      onChange={(event) => onUpdateUser(item.id, { vendorId: event.target.value })}
-                    >
-                      <option value="">Not assigned</option>
-                      {vendors.map((vendor) => (
-                        <option key={vendor.id} value={vendor.id}>
-                          {vendorNameById[vendor.id]}
-                        </option>
-                      ))}
-                    </select>
+                    {isAdminUser ? (
+                      <span className="text-stone-400">-</span>
+                    ) : (
+                      <select
+                        className="field min-w-52 py-2"
+                        value={item.vendorId || ''}
+                        onChange={(event) => onUpdateUser(item.id, { vendorId: event.target.value })}
+                      >
+                        <option value="">Not assigned</option>
+                        {vendors.map((vendor) => (
+                          <option key={vendor.id} value={vendor.id}>
+                            {vendorNameById[vendor.id]}
+                          </option>
+                        ))}
+                      </select>
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-2">

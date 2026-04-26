@@ -19,6 +19,12 @@ module.exports = [
   },
   {
     method: 'GET',
+    pattern: /^\/api\/sessions\/([^/]+)\/scripts\/next$/,
+    paramNames: ['sessionId'],
+    handler: sessionController.getNextSessionScript,
+  },
+  {
+    method: 'GET',
     pattern: /^\/api\/sessions\/([^/]+)$/,
     paramNames: ['sessionId'],
     handler: sessionController.getSession,
