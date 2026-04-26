@@ -17,7 +17,12 @@ const {
   listVendors,
   updateVendor,
 } = require('../models/vendorModel')
-const { deleteRecording, getSessionById, toPublicSession } = require('../models/sessionModel')
+const {
+  deleteRecording,
+  deleteSessionsByOwner,
+  getSessionById,
+  toPublicSession,
+} = require('../models/sessionModel')
 const { createScript, deleteScript, listScripts, updateScript } = require('../models/scriptModel')
 
 function requireAdmin(req, res) {
@@ -163,6 +168,7 @@ async function deleteAdminUser(req, res, _context, params) {
     return
   }
 
+  await deleteSessionsByOwner(params.userId)
   const deleted = deleteUser(params.userId)
   if (!deleted) {
     sendJson(res, 404, { error: 'User not found.' })

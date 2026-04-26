@@ -252,6 +252,7 @@ async function deleteRecording(session, track) {
 
   const recording = session.recordings[track]
   await deleteAudio(recording.publicId)
+  deleteLocalRecordingFile(session.id, recording.fileName)
   session.recordings[track] = null
 
   if (session.recordingState === 'ready') {
@@ -261,6 +262,63 @@ async function deleteRecording(session, track) {
   sessions.set(session.id, session)
   persistSessions()
   return recording
+}
+
+function deleteLocalRecordingFile(sessionId, fileName) {
+  if (!fileName) {
+    return
+  }
+
+  const filePath = getRecordingPath(sessionId, fileName)
+  if (fs.existsSync(filePath)) {
+    fs.rmSync(filePath, { force: true })
+  }
+}
+
+function deleteLocalRecordingFolder(sessionId) {
+  const folderPath = path.join(RECORDINGS_DIR, sessionId)
+  if (fs.existsSync(folderPath)) {
+    fs.rmSync(folderPath, { recursive: true, force: true })
+  }
+}
+
+async function deleteSession(sessionId) {
+  const session = getSessionById(sessionId)
+  if (!session) {
+    return null
+  }
+
+  await Promise.all(
+    Object.values(session.recordings || {})
+      .filter(Boolean)
+      .map((recording) => deleteAudio(recording.publicId)),
+  )
+
+  deleteLocalRecordingFolder(sessionId)
+  sessions.delete(sessionId)
+
+  const collection = getCollection('sessions')
+  if (collection) {
+    await collection.deleteOne({ id: sessionId })
+  }
+
+  return session
+}
+
+async function deleteSessionsByOwner(ownerUserId) {
+  const ownerSessions = [...sessions.values()].filter(
+    (session) => session.ownerUserId === ownerUserId,
+  )
+
+  const deleted = []
+  for (const session of ownerSessions) {
+    const deletedSession = await deleteSession(session.id)
+    if (deletedSession) {
+      deleted.push(deletedSession)
+    }
+  }
+
+  return deleted
 }
 
 module.exports = {
@@ -278,6 +336,8 @@ module.exports = {
   updateRecordingState,
   saveRecording,
   deleteRecording,
+  deleteSession,
+  deleteSessionsByOwner,
   getRecordingPath,
   getRecordingByFileName,
 }

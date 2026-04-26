@@ -75,10 +75,29 @@ const server = http.createServer((req, res) => {
 
 server.on('error', (error) => {
   if (error.code === 'EADDRINUSE') {
-    console.error(
-      `Port ${PORT} already use mein hai. Purana backend stop kijiye ya backend/.env mein PORT change kijiye.`,
-    )
-    process.exit(1)
+    const req = http.get(`http://localhost:${PORT}/health`, (res) => {
+      if (res.statusCode === 200) {
+        console.log(`Podcast backend is already running on http://localhost:${PORT}`)
+        process.exit(0)
+        return
+      }
+
+      console.error(
+        `Port ${PORT} is already in use by another process. Stop that process or set PORT in backend/.env.`,
+      )
+      process.exit(1)
+    })
+
+    req.on('error', () => {
+      console.error(
+        `Port ${PORT} is already in use by another process. Stop that process or set PORT in backend/.env.`,
+      )
+      process.exit(1)
+    })
+    req.setTimeout(1500, () => {
+      req.destroy()
+    })
+    return
   }
 
   console.error('Server failed:', error)

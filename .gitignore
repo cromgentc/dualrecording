@@ -1,0 +1,13 @@
+node_modules/
+dist/
+*.log
+
+backend/.env
+backend/.runtime-port
+backend/node_modules/
+backend/storage/
+
+frontend/.env
+frontend/.env.*
+frontend/node_modules/
+frontend/dist/
