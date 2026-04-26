@@ -4,6 +4,11 @@ const systemController = require('../controllers/systemController')
 module.exports = [
   {
     method: 'GET',
+    path: '/',
+    handler: systemController.root,
+  },
+  {
+    method: 'GET',
     path: '/health',
     handler: systemController.health,
   },

@@ -129,11 +129,25 @@ async function health(_req, res, context) {
   })
 }
 
+async function root(_req, res, context) {
+  sendJson(res, 200, {
+    ok: true,
+    name: 'DualRecord API',
+    message:
+      'Backend is running. Open the frontend app URL to use the recording dashboard.',
+    health: '/health',
+    endpoints: '/api/endpoints',
+    frontendUrl: process.env.APP_ORIGIN || '',
+    baseUrl: `http://localhost:${context.port}`,
+  })
+}
+
 async function endpoints(_req, res, context) {
   sendJson(res, 200, getApiEndpointCatalog(context.port))
 }
 
 module.exports = {
+  root,
   health,
   endpoints,
   getApiEndpointCatalog,
