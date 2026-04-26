@@ -1,0 +1,131 @@
+@import "tailwindcss";
+
+/* Base layer defines the global app canvas and browser defaults. */
+@layer base {
+  :root {
+    color: #e2d6c7;
+    background:
+      radial-gradient(circle at top left, rgba(255, 181, 71, 0.12), transparent 30%),
+      radial-gradient(circle at top right, rgba(126, 224, 181, 0.1), transparent 25%),
+      linear-gradient(180deg, #10252d, #081319 42%, #f5efe2 170%);
+    font-family:
+      'Aptos',
+      'Trebuchet MS',
+      'Segoe UI',
+      sans-serif;
+    line-height: 1.5;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply m-0 min-h-screen min-w-80 bg-transparent text-stone-200;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      linear-gradient(transparent 96%, rgba(255, 255, 255, 0.03) 100%),
+      linear-gradient(90deg, transparent 96%, rgba(255, 255, 255, 0.025) 100%);
+    background-size: 100% 46px, 46px 100%;
+    pointer-events: none;
+    opacity: 0.45;
+  }
+
+  button,
+  input,
+  select {
+    font: inherit;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  h1,
+  h2,
+  h3 {
+    @apply m-0 font-semibold text-stone-50;
+    font-family:
+      'Aptos Display',
+      'Trebuchet MS',
+      'Segoe UI',
+      sans-serif;
+    line-height: 1.05;
+  }
+
+  p {
+    @apply m-0;
+  }
+
+  #root {
+    @apply min-h-screen;
+  }
+}
+
+@layer components {
+  /* Shared utility classes keep React markup focused on structure. */
+  .page-shell {
+    @apply mx-auto w-[min(1240px,calc(100%-32px))];
+  }
+
+  .glass-card {
+    @apply rounded-[28px] border border-white/10 bg-slate-950/55 shadow-[0_24px_60px_rgba(0,0,0,0.28)] backdrop-blur-xl;
+  }
+
+  .info-card {
+    @apply rounded-3xl border border-white/10 bg-white/5 px-4 py-4;
+  }
+
+  .eyebrow {
+    @apply text-[0.75rem] uppercase tracking-[0.22em] text-stone-300;
+  }
+
+  .field {
+    @apply w-full rounded-2xl border border-white/10 bg-stone-100/10 px-4 py-3 text-stone-50 outline-none transition focus:border-amber-300/60 focus:ring-2 focus:ring-amber-300/30;
+  }
+
+  .primary-btn {
+    @apply inline-flex items-center justify-center rounded-full bg-linear-to-r from-amber-300 to-orange-500 px-5 py-3 font-semibold text-stone-950 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0;
+  }
+
+  .secondary-btn {
+    @apply inline-flex items-center justify-center rounded-full bg-amber-300/12 px-5 py-3 font-semibold text-amber-200 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0;
+  }
+
+  .danger-btn {
+    @apply inline-flex items-center justify-center rounded-full bg-linear-to-r from-rose-400 to-red-500 px-5 py-3 font-semibold text-white transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0;
+  }
+
+  .ghost-btn {
+    @apply inline-flex items-center justify-center rounded-full bg-white/8 px-5 py-3 font-semibold text-stone-100 transition hover:-translate-y-0.5;
+  }
+
+  .tab-btn {
+    @apply inline-flex items-center justify-center rounded-full px-4 py-3 font-semibold text-stone-300 transition hover:-translate-y-0.5;
+  }
+
+  .tab-btn-active {
+    @apply inline-flex items-center justify-center rounded-full bg-linear-to-r from-amber-300 to-orange-500 px-4 py-3 font-semibold text-stone-950 transition;
+  }
+}
+
+@media (max-width: 720px) {
+  /* Mobile screens get a little more horizontal breathing room. */
+  .page-shell {
+    width: min(100% - 20px, 1240px);
+  }
+}
