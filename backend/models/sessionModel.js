@@ -6,10 +6,19 @@ const { getCollection, stripMongoId } = require('../lib/database')
 
 const STORAGE_DIR = path.join(__dirname, '..', 'storage')
 const RECORDINGS_DIR = path.join(STORAGE_DIR, 'recordings')
+const DEFAULT_APP_ORIGIN = 'https://dualrecording.vercel.app'
 
 fs.mkdirSync(RECORDINGS_DIR, { recursive: true })
 
 const sessions = new Map()
+
+function normalizeAppOrigin(appOrigin) {
+  if (!appOrigin || /^http:\/\/localhost:5173\/?$/i.test(appOrigin)) {
+    return DEFAULT_APP_ORIGIN
+  }
+
+  return appOrigin.replace(/\/$/, '')
+}
 
 async function initializeSessions() {
   const collection = getCollection('sessions')
@@ -47,7 +56,7 @@ function createSession(payload = {}, requestOrigin, owner) {
   const hostToken = createId(12)
   const guestToken = createId(12)
   const adminToken = createId(12)
-  const appOrigin = process.env.APP_ORIGIN || requestOrigin || 'http://localhost:5173'
+  const appOrigin = normalizeAppOrigin(process.env.APP_ORIGIN || requestOrigin)
 
   const session = {
     id,
@@ -117,7 +126,7 @@ function getSessionCount() {
 
 function buildLinks(session) {
   // Role-specific tokens make invite URLs enough to join the correct studio side.
-  const base = session.appOrigin || 'http://localhost:5173'
+  const base = normalizeAppOrigin(session.appOrigin)
   return {
     admin: `${base}/?admin=${session.adminToken}`,
     host: `${base}/?session=${session.id}&role=host&token=${session.hostToken}`,
