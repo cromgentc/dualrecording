@@ -648,7 +648,19 @@ function AdminPage({ authToken, user, onLogout }) {
                 ))}
               </div>
             ) : (
-              <p className="mt-4 text-sm text-stone-300">Abhi koi live recording active nahi hai.</p>
+              <div className="mt-5 flex min-h-28 items-center justify-center rounded-3xl border border-dashed border-white/15 bg-white/[0.03] px-5 py-8 text-center">
+                <div>
+                  <span className="mx-auto flex size-11 items-center justify-center rounded-full bg-emerald-300/10 ring-1 ring-emerald-300/25">
+                    <span className="size-3 rounded-full bg-emerald-300 shadow-[0_0_18px_rgba(110,231,183,0.8)]" />
+                  </span>
+                  <h3 className="mt-4 text-base font-semibold text-stone-50">
+                    No live recording active
+                  </h3>
+                  <p className="mt-2 text-sm text-stone-300">
+                    Jab koi room recording start karega, woh yahan live status ke saath dikhega.
+                  </p>
+                </div>
+              </div>
             )}
           </div>
         ) : (
