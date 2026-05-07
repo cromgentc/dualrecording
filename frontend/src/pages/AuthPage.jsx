@@ -23,7 +23,6 @@ function AuthPage({ onAuthenticated }) {
     name: '',
     email: '',
     mobile: '',
-    role: 'user',
     password: '',
     confirmPassword: '',
   })
@@ -97,7 +96,7 @@ function AuthPage({ onAuthenticated }) {
           name: registerForm.name,
           email: registerForm.email,
           mobile: registerForm.mobile,
-          role: registerForm.role || 'user',
+          role: 'user',
           password: registerForm.password,
         }),
       })
@@ -161,7 +160,7 @@ function AuthPage({ onAuthenticated }) {
         channel: payload.channel || current.channel,
       }))
       setForgotStep('reset')
-      setMessage('OTP validated. Ab naya password create kijiye.')
+      setMessage('OTP validated. Create a new password.')
     } catch (error) {
       setMessage(error.message)
     } finally {
@@ -224,7 +223,7 @@ function AuthPage({ onAuthenticated }) {
       return {
         eyebrow: 'Create Account',
         title: 'Register new account',
-        description: 'Name, email, mobile aur password ke saath naya user create kijiye.',
+        description: 'Create a new user with name, email, mobile, and password.',
       }
     }
 
@@ -239,17 +238,17 @@ function AuthPage({ onAuthenticated }) {
               : 'Create new password',
         description:
           forgotStep === 'request'
-            ? 'Email ya mobile number me se ek choose karke OTP verification start kijiye.'
+            ? 'Choose email or mobile number to start OTP verification.'
             : forgotStep === 'verify'
-              ? `Selected ${forgotChannel === 'mobile' ? 'mobile number' : 'email'} par aaye OTP ko validate kariye.`
-              : 'Verification complete hone ke baad naya password set kariye.',
+              ? `Validate the OTP sent to the selected ${forgotChannel === 'mobile' ? 'mobile number' : 'email'}.`
+              : 'Set a new password after verification is complete.',
       }
     }
 
     return {
       eyebrow: 'Podcast Login',
       title: 'Welcome back',
-      description: 'Login ke baad user aur admin apne-apne page par redirect honge.',
+      description: 'After login, users and admins will be redirected to their own pages.',
     }
   }
 
@@ -419,23 +418,6 @@ function AuthPage({ onAuthenticated }) {
                 }
                 placeholder="Mobile number"
               />
-            </label>
-
-            <label className="block">
-              <span className="eyebrow">Role</span>
-              <select
-                className="field mt-2"
-                value={registerForm.role}
-                onChange={(event) =>
-                  setRegisterForm((current) => ({
-                    ...current,
-                    role: event.target.value,
-                  }))
-                }
-              >
-                <option value="user">User</option>
-                <option value="admin">Admin</option>
-              </select>
             </label>
 
             <label className="block">

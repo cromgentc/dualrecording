@@ -150,7 +150,7 @@ function VendorPage({ authToken, user, onLogout }) {
       }
 
       setProfileOpen(false)
-      setMessage('Vendor profile save ho gaya.')
+      setMessage('Vendor profile saved.')
     } catch (error) {
       setMessage(error.message)
     }
@@ -173,7 +173,7 @@ function VendorPage({ authToken, user, onLogout }) {
         scriptMode: 'script',
       })
       setUserModalOpen(false)
-      setMessage('User register ho gaya.')
+      setMessage('User registered.')
     } catch (error) {
       setMessage(error.message)
     }

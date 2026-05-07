@@ -94,7 +94,7 @@ function SetupRecordingPage({ authToken, user, onLogout }) {
       })
       setSessions((current) => [session, ...current])
       setActiveSessionId(session.id)
-      setMessage('Recording room ready. Invite links generate ho gaye hain.')
+      setMessage('Recording room ready. Invite links have been generated.')
       setView('sessions')
     } catch (error) {
       setMessage(error.message)
@@ -214,7 +214,7 @@ function SetupRecordingPage({ authToken, user, onLogout }) {
                 No recording room yet
               </h3>
               <p className="mt-2 text-stone-300">
-                Pehla session create kijiye, phir host aur guest links yahin milenge.
+                Create your first session, then the host and guest links will appear here.
               </p>
             </div>
           )}

@@ -12,6 +12,7 @@ const { initializeOtpChallenges } = require('./models/otpChallengeModel')
 const { initializeSessions } = require('./models/sessionModel')
 const { initializeVendors } = require('./models/vendorModel')
 const { initializeScripts } = require('./models/scriptModel')
+const { initializeApiSettings } = require('./models/apiSettingsModel')
 
 const PORT = Number(process.env.PORT || 5000)
 
@@ -116,6 +117,7 @@ async function startServer() {
       initializeSessions(),
       initializeVendors(),
       initializeScripts(),
+      initializeApiSettings(),
     ])
   } catch (error) {
     console.error('Database startup failed:', error.message)

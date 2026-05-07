@@ -58,7 +58,7 @@ function DashboardPage({ authToken, user, onLogout }) {
         guestLabel: 'Speaker 2',
       })
       setSessions((current) => [session, ...current])
-      setMessage('Session ready. Host aur guest dono ke invite links generate ho gaye hain.')
+      setMessage('Session ready. Host and guest invite links have been generated.')
     } catch (error) {
       setMessage(error.message)
     } finally {
@@ -74,11 +74,11 @@ function DashboardPage({ authToken, user, onLogout }) {
         <div>
           <p className="eyebrow">Remote Podcast Console</p>
           <h1 className="max-w-4xl text-4xl font-semibold tracking-[-0.05em] text-stone-50 md:text-6xl">
-            Login ke baad aapka recording dashboard yahin open hota hai.
+            After login, your recording dashboard opens here.
           </h1>
           <p className="mt-4 max-w-3xl text-base text-stone-200/85 md:text-lg">
-            Har logged-in user apne khud ke podcast sessions manage karega. Session
-            create karo, host aur guest invite bhejo, aur 3 tracks download karo.
+            Every logged-in user can manage their own podcast sessions, create rooms,
+            send host and guest invites, and download all 3 tracks.
           </p>
         </div>
 
@@ -173,8 +173,7 @@ function DashboardPage({ authToken, user, onLogout }) {
                 No sessions yet
               </h3>
               <p className="mt-2 text-stone-300">
-                Sabse pehle ek session create kariye. Invite links yahin generate ho
-                jayenge.
+                Create your first session. Invite links will be generated here.
               </p>
             </div>
           )}

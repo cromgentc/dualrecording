@@ -24,6 +24,7 @@ const {
   toPublicSession,
 } = require('../models/sessionModel')
 const { createScript, deleteScript, listScripts, updateScript } = require('../models/scriptModel')
+const { getApiSettings, updateApiSettings } = require('../models/apiSettingsModel')
 
 function requireAdmin(req, res) {
   const auth = requireAuth(req, res)
@@ -436,6 +437,35 @@ async function deleteAdminRecording(req, res, _context, params) {
   sendJson(res, 200, { ok: true, session: toPublicSession(session) })
 }
 
+async function getAdminApiSettings(req, res) {
+  if (!requireAdmin(req, res)) {
+    return
+  }
+
+  sendJson(res, 200, getApiSettings())
+}
+
+async function updateAdminApiSettings(req, res) {
+  if (!requireAdmin(req, res)) {
+    return
+  }
+
+  const body = await readJsonBody(req)
+  const patch = {
+    cloudName: body.cloudName,
+    apiKey: body.apiKey,
+    apiSecret: body.apiSecret,
+  }
+
+  if (!String(patch.cloudName || '').trim() || !String(patch.apiKey || '').trim() || !String(patch.apiSecret || '').trim()) {
+    sendJson(res, 400, { error: 'Cloud name, API key, and API secret required.' })
+    return
+  }
+
+  const settings = await updateApiSettings(patch)
+  sendJson(res, 200, settings)
+}
+
 module.exports = {
   listAdminUsers,
   createAdminUser,
@@ -453,4 +483,6 @@ module.exports = {
   updateAdminScript,
   deleteAdminScript,
   deleteAdminRecording,
+  getAdminApiSettings,
+  updateAdminApiSettings,
 }

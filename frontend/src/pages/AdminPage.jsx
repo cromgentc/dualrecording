@@ -8,6 +8,7 @@ const navItems = [
   { label: 'Users Management', value: 'users' },
   { label: 'Vendor Management', value: 'vendors' },
   { label: 'Script Upload', value: 'scripts' },
+  { label: 'API Settings', value: 'api-settings' },
 ]
 
 const ACTIVE_WINDOW_MS = 30 * 1000
@@ -18,6 +19,7 @@ function AdminPage({ authToken, user, onLogout }) {
   const [users, setUsers] = useState([])
   const [vendors, setVendors] = useState([])
   const [scripts, setScripts] = useState([])
+  const [apiSettings, setApiSettings] = useState(null)
   const [systemStats, setSystemStats] = useState({ users: 0, vendors: 0 })
   const [message, setMessage] = useState('')
   const [messageTone, setMessageTone] = useState('default')
@@ -54,6 +56,11 @@ function AdminPage({ authToken, user, onLogout }) {
     speaker1Label: 'Speaker 1',
     speaker2Label: 'Speaker 2',
     script: '',
+  })
+  const [apiForm, setApiForm] = useState({
+    cloudName: '',
+    apiKey: '',
+    apiSecret: '',
   })
   const [userForm, setUserForm] = useState({
     name: '',
@@ -212,12 +219,13 @@ function AdminPage({ authToken, user, onLogout }) {
           setRefreshing(true)
         }
 
-        const [sessionData, userData, vendorData, scriptData, health] = await Promise.all([
+        const [sessionData, userData, vendorData, scriptData, health, apiSettingsData] = await Promise.all([
           apiRequest('/api/sessions', { authToken }),
           apiRequest('/api/admin/users', { authToken }),
           apiRequest('/api/admin/vendors', { authToken }),
           apiRequest('/api/admin/scripts', { authToken }),
           apiRequest('/health'),
+          apiRequest('/api/admin/settings', { authToken }),
         ])
 
         startTransition(() => {
@@ -231,6 +239,11 @@ function AdminPage({ authToken, user, onLogout }) {
           )
           setVendors(vendorData)
           setScripts(scriptData)
+          setApiSettings(apiSettingsData)
+          setApiForm((current) => ({
+            ...current,
+            cloudName: current.cloudName || apiSettingsData.cloudName || '',
+          }))
           setSystemStats({
             users: health.users || userData.length,
             vendors: health.vendors || vendorData.length,
@@ -238,7 +251,7 @@ function AdminPage({ authToken, user, onLogout }) {
         })
 
         if (!quiet) {
-          showToast('Admin data refresh ho gaya.')
+          showToast('Admin data refreshed.')
         }
       } catch (error) {
         showToast(error.message, 'error')
@@ -279,7 +292,7 @@ function AdminPage({ authToken, user, onLogout }) {
       setVendors((current) => [vendor, ...current])
       setVendorForm({ name: '', email: '', mobile: '', password: '123456' })
       setVendorModal(null)
-      showToast(`Vendor code ${vendor.code} generate ho gaya.`)
+      showToast(`Vendor code ${vendor.code} was generated.`)
     } catch (error) {
       showToast(error.message, 'error')
     }
@@ -298,7 +311,7 @@ function AdminPage({ authToken, user, onLogout }) {
       setVendors((current) => [...result.created, ...current])
       setVendorBulkText('')
       setVendorModal(null)
-      showToast(`${result.created.length} vendors bulk register huye.`)
+      showToast(`${result.created.length} vendors were registered in bulk.`)
     } catch (error) {
       showToast(error.message, 'error')
     }
@@ -327,7 +340,7 @@ function AdminPage({ authToken, user, onLogout }) {
         scriptMode: 'script',
       })
       setUserModal(null)
-      showToast('User register ho gaya.')
+      showToast('User registered.')
     } catch (error) {
       showToast(error.message, 'error')
     }
@@ -353,7 +366,7 @@ function AdminPage({ authToken, user, onLogout }) {
       setUsers((current) => [...result.created, ...current])
       setBulkText('')
       setUserModal(null)
-      showToast(`${result.created.length} users bulk register huye.`)
+      showToast(`${result.created.length} users were registered in bulk.`)
     } catch (error) {
       showToast(error.message, 'error')
     }
@@ -371,7 +384,7 @@ function AdminPage({ authToken, user, onLogout }) {
         body: JSON.stringify(patch),
       })
       setUsers((current) => current.map((item) => (item.id === userId ? nextUser : item)))
-      showToast('User update ho gaya.')
+      showToast('User updated.')
     } catch (error) {
       showToast(error.message, 'error')
     }
@@ -404,9 +417,9 @@ function AdminPage({ authToken, user, onLogout }) {
           delete nextPending[userId]
           return nextPending
         })
-        showToast('Script type update ho gaya.')
+        showToast('Script type updated.')
       } else {
-        showToast('Script type UI mein change ho gaya. Backend restart/deploy ke baad permanent save hoga.', 'error')
+        showToast('Script type changed in the UI. Restart or deploy the backend to save it permanently.', 'error')
       }
     } catch (error) {
       setUsers((current) =>
@@ -431,7 +444,7 @@ function AdminPage({ authToken, user, onLogout }) {
         authToken,
       })
       setUsers((current) => current.filter((item) => item.id !== userId))
-      showToast('User delete ho gaya.')
+      showToast('User deleted.')
     } catch (error) {
       showToast(error.message, 'error')
     }
@@ -445,7 +458,7 @@ function AdminPage({ authToken, user, onLogout }) {
         body: JSON.stringify(patch),
       })
       setVendors((current) => current.map((item) => (item.id === vendorId ? vendor : item)))
-      showToast('Vendor update ho gaya.')
+      showToast('Vendor updated.')
     } catch (error) {
       showToast(error.message, 'error')
     }
@@ -458,7 +471,7 @@ function AdminPage({ authToken, user, onLogout }) {
         authToken,
       })
       setVendors((current) => current.filter((item) => item.id !== vendorId))
-      showToast('Vendor delete ho gaya.')
+      showToast('Vendor deleted.')
     } catch (error) {
       showToast(error.message, 'error')
     }
@@ -473,7 +486,7 @@ function AdminPage({ authToken, user, onLogout }) {
         body: JSON.stringify(profileForm),
       })
       setProfileModal(false)
-      showToast('Profile save ho gaya. Refresh ke baad header name update dikhega.')
+      showToast('Profile saved. The header name will update after refresh.')
     } catch (error) {
       showToast(error.message, 'error')
     }
@@ -497,7 +510,7 @@ function AdminPage({ authToken, user, onLogout }) {
         script: '',
       })
       setScriptModal(null)
-      showToast('Script assign ho gaya.')
+      showToast('Script assigned.')
     } catch (error) {
       showToast(error.message, 'error')
     }
@@ -515,7 +528,7 @@ function AdminPage({ authToken, user, onLogout }) {
       resetScriptForm()
       setScriptModal(null)
       setEditingScriptId('')
-      showToast('Script update ho gaya.')
+      showToast('Script updated.')
     } catch (error) {
       showToast(error.message, 'error')
     }
@@ -528,7 +541,7 @@ function AdminPage({ authToken, user, onLogout }) {
         authToken,
       })
       setScripts((current) => current.filter((item) => item.id !== scriptId))
-      showToast('Script delete ho gaya.')
+      showToast('Script deleted.')
     } catch (error) {
       showToast(error.message, 'error')
     }
@@ -583,7 +596,7 @@ function AdminPage({ authToken, user, onLogout }) {
       setScripts((current) => [...result.created, ...current])
       setScriptBulkText('')
       setScriptModal(null)
-      showToast(`${result.created.length} scripts bulk assign huye.`)
+      showToast(`${result.created.length} scripts were assigned in bulk.`)
     } catch (error) {
       showToast(error.message, 'error')
     }
@@ -602,7 +615,27 @@ function AdminPage({ authToken, user, onLogout }) {
       setSessions((current) =>
         current.map((session) => (session.id === sessionId ? result.session : session)),
       )
-      showToast('Recording delete ho gaya.')
+      showToast('Recording deleted.')
+    } catch (error) {
+      showToast(error.message, 'error')
+    }
+  }
+
+  async function handleSaveApiSettings(event) {
+    event.preventDefault()
+    try {
+      const settings = await apiRequest('/api/admin/settings', {
+        method: 'POST',
+        authToken,
+        body: JSON.stringify(apiForm),
+      })
+      setApiSettings(settings)
+      setApiForm({
+        cloudName: settings.cloudName || '',
+        apiKey: '',
+        apiSecret: '',
+      })
+      showToast('API settings saved to the backend.')
     } catch (error) {
       showToast(error.message, 'error')
     }
@@ -746,7 +779,7 @@ function AdminPage({ authToken, user, onLogout }) {
                     No live recording active
                   </h3>
                   <p className="mt-2 text-sm text-stone-300">
-                    Jab koi room recording start karega, woh yahan live status ke saath dikhega.
+                    When a room starts recording, its live status will appear here.
                   </p>
                 </div>
               </div>
@@ -873,6 +906,53 @@ function AdminPage({ authToken, user, onLogout }) {
             setForm={setScriptForm}
           />
         ) : null}
+      </section>
+    )
+  }
+
+  function renderApiSettings() {
+    return (
+      <section className="grid gap-5">
+        <div className="glass-card p-5">
+          <p className="eyebrow">Backend Settings</p>
+          <h2 className="mt-2 text-2xl font-semibold tracking-tight text-stone-50">
+            API Settings
+          </h2>
+          <p className="mt-2 text-sm text-stone-300">
+            Save your Cloudinary API details here so the backend can upload recordings.
+          </p>
+        </div>
+
+        <form className="glass-card max-w-2xl p-6" onSubmit={handleSaveApiSettings}>
+          <div className="grid gap-4">
+            <InputField
+              label="Cloud Name"
+              value={apiForm.cloudName}
+              onChange={(value) => setApiForm((current) => ({ ...current, cloudName: value }))}
+            />
+            <InputField
+              label="API Key"
+              value={apiForm.apiKey}
+              onChange={(value) => setApiForm((current) => ({ ...current, apiKey: value }))}
+              placeholder={apiSettings?.apiKey ? `Current: ${apiSettings.apiKey}` : 'Enter API key'}
+            />
+            <InputField
+              label="API Secret"
+              type="password"
+              value={apiForm.apiSecret}
+              onChange={(value) => setApiForm((current) => ({ ...current, apiSecret: value }))}
+              placeholder={apiSettings?.apiSecret ? `Current: ${apiSettings.apiSecret}` : 'Enter API secret'}
+            />
+          </div>
+          <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <span className="text-sm text-stone-300">
+              Status: {apiSettings?.configured ? 'Configured' : 'Not configured'}
+            </span>
+            <button className="primary-btn" type="submit">
+              Save API Settings
+            </button>
+          </div>
+        </form>
       </section>
     )
   }
@@ -1041,6 +1121,7 @@ function AdminPage({ authToken, user, onLogout }) {
             {activeTab === 'users' ? renderUsers() : null}
             {activeTab === 'vendors' ? renderVendors() : null}
             {activeTab === 'scripts' ? renderScripts() : null}
+            {activeTab === 'api-settings' ? renderApiSettings() : null}
           </div>
         </div>
       </div>
@@ -1066,7 +1147,7 @@ function StatCard({ label, value }) {
   )
 }
 
-function InputField({ label, value, onChange, type = 'text' }) {
+function InputField({ label, value, onChange, placeholder = '', type = 'text' }) {
   return (
     <label className="block">
       <span className="eyebrow">{label}</span>
@@ -1074,6 +1155,7 @@ function InputField({ label, value, onChange, type = 'text' }) {
         className="field mt-2"
         type={type}
         value={value}
+        placeholder={placeholder}
         onChange={(event) => onChange(event.target.value)}
       />
     </label>
@@ -1518,7 +1600,7 @@ function CompletedRecordingPanel({
               </button>
             ))
           ) : (
-            <p className="text-sm text-stone-300">Complete/uploaded recording abhi available nahi hai.</p>
+            <p className="text-sm text-stone-300">No completed or uploaded recordings are available yet.</p>
           )}
         </div>
       </div>

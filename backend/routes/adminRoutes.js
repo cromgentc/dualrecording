@@ -3,6 +3,26 @@ const adminController = require('../controllers/adminController')
 module.exports = [
   {
     method: 'GET',
+    path: '/api/admin/settings',
+    handler: adminController.getAdminApiSettings,
+  },
+  {
+    method: 'POST',
+    path: '/api/admin/settings',
+    handler: adminController.updateAdminApiSettings,
+  },
+  {
+    method: 'GET',
+    path: '/api/admin/api-settings',
+    handler: adminController.getAdminApiSettings,
+  },
+  {
+    method: 'POST',
+    path: '/api/admin/api-settings',
+    handler: adminController.updateAdminApiSettings,
+  },
+  {
+    method: 'GET',
     path: '/api/admin/users',
     handler: adminController.listAdminUsers,
   },
