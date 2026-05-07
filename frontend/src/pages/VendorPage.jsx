@@ -23,6 +23,14 @@ function VendorPage({ authToken, user, onLogout }) {
   const [vendors, setVendors] = useState([])
   const [message, setMessage] = useState('')
   const [profileOpen, setProfileOpen] = useState(false)
+  const [userModalOpen, setUserModalOpen] = useState(false)
+  const [userForm, setUserForm] = useState({
+    name: '',
+    email: '',
+    mobile: '',
+    password: '123456',
+    scriptMode: 'script',
+  })
   const [profile, setProfile] = useState({
     name: user.name || '',
     email: user.email || '',
@@ -148,6 +156,29 @@ function VendorPage({ authToken, user, onLogout }) {
     }
   }
 
+  async function handleCreateUser(event) {
+    event.preventDefault()
+    try {
+      const nextUser = await apiRequest('/api/admin/users', {
+        method: 'POST',
+        authToken,
+        body: JSON.stringify(userForm),
+      })
+      setUsers((current) => [nextUser, ...current])
+      setUserForm({
+        name: '',
+        email: '',
+        mobile: '',
+        password: '123456',
+        scriptMode: 'script',
+      })
+      setUserModalOpen(false)
+      setMessage('User register ho gaya.')
+    } catch (error) {
+      setMessage(error.message)
+    }
+  }
+
   return (
     <main className="page-shell py-8">
       <ToastMessage message={message} onClose={() => setMessage('')} />
@@ -167,6 +198,9 @@ function VendorPage({ authToken, user, onLogout }) {
           <button className="secondary-btn" type="button" onClick={openProfileEditor}>
             Edit Profile
           </button>
+          <button className="primary-btn" type="button" onClick={() => setUserModalOpen(true)}>
+            Register User
+          </button>
         </div>
       </section>
 
@@ -180,8 +214,14 @@ function VendorPage({ authToken, user, onLogout }) {
       <section className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <TableCard
           title="Vendor users"
-          columns={['User ID', 'Name', 'Mobile', 'Status']}
-          rows={vendorUsers.map((item) => [item.id, item.name, item.mobile, item.status])}
+          columns={['User ID', 'Name', 'Mobile', 'Script Type', 'Status']}
+          rows={vendorUsers.map((item) => [
+            item.id,
+            item.name,
+            item.mobile,
+            item.scriptMode === 'non-script' ? 'Non Script' : 'Script',
+            item.status,
+          ])}
         />
         <TableCard
           title="Completed recordings"
@@ -246,7 +286,69 @@ function VendorPage({ authToken, user, onLogout }) {
           </form>
         </div>
       ) : null}
+
+      {userModalOpen ? (
+        <UserRegisterModal
+          form={userForm}
+          onClose={() => setUserModalOpen(false)}
+          onSubmit={handleCreateUser}
+          setForm={setUserForm}
+        />
+      ) : null}
     </main>
+  )
+}
+
+function UserRegisterModal({ form, onClose, onSubmit, setForm }) {
+  return (
+    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 px-4 py-6 backdrop-blur-sm">
+      <form className="glass-card w-full max-w-lg p-6" onSubmit={onSubmit}>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="eyebrow">Register User</p>
+            <h2 className="mt-2 text-2xl font-semibold tracking-tight text-stone-50">
+              Create user account
+            </h2>
+          </div>
+          <button className="ghost-btn px-4 py-2" type="button" onClick={onClose}>
+            Close
+          </button>
+        </div>
+        <div className="mt-5 grid gap-4">
+          {['name', 'email', 'mobile', 'password'].map((key) => (
+            <label className="block" key={key}>
+              <span className="eyebrow">
+                {key === 'mobile' ? 'Mobile' : key.charAt(0).toUpperCase() + key.slice(1)}
+              </span>
+              <input
+                className="field mt-2"
+                type={key === 'email' ? 'email' : key === 'password' ? 'password' : 'text'}
+                value={form[key]}
+                onChange={(event) =>
+                  setForm((current) => ({ ...current, [key]: event.target.value }))
+                }
+              />
+            </label>
+          ))}
+          <label className="block">
+            <span className="eyebrow">Script Type</span>
+            <select
+              className="field mt-2"
+              value={form.scriptMode || 'script'}
+              onChange={(event) =>
+                setForm((current) => ({ ...current, scriptMode: event.target.value }))
+              }
+            >
+              <option value="script">Script</option>
+              <option value="non-script">Non Script</option>
+            </select>
+          </label>
+        </div>
+        <button className="primary-btn mt-5 w-full" type="submit">
+          Register User
+        </button>
+      </form>
+    </div>
   )
 }
 

@@ -8,6 +8,10 @@ const {
 
 const users = new Map()
 
+function normalizeScriptMode(value) {
+  return value === 'non-script' ? 'non-script' : 'script'
+}
+
 async function initializeUsers() {
   const collection = getCollection('users')
   if (!collection) {
@@ -23,6 +27,7 @@ async function initializeUsers() {
       role: ['admin', 'vendor'].includes(user.role) ? user.role : 'user',
       status: ['inactive', 'suspended'].includes(user.status) ? user.status : 'active',
       vendorCode: String(user.vendorCode || '').trim(),
+      scriptMode: normalizeScriptMode(user.scriptMode),
     }
     users.set(normalizedUser.id, normalizedUser)
   })
@@ -95,6 +100,7 @@ function createUser({
   role = 'user',
   vendorId = '',
   vendorCode = '',
+  scriptMode = 'script',
 }) {
   const user = {
     id: createId(8),
@@ -106,6 +112,7 @@ function createUser({
     status: 'active',
     vendorId: String(vendorId || '').trim(),
     vendorCode: String(vendorCode || '').trim(),
+    scriptMode: normalizeScriptMode(scriptMode),
     createdAt: new Date().toISOString(),
   }
 
@@ -144,6 +151,8 @@ function updateUser(userId, patch) {
     vendorId: patch.vendorId !== undefined ? String(patch.vendorId || '').trim() : user.vendorId || '',
     vendorCode:
       patch.vendorCode !== undefined ? String(patch.vendorCode || '').trim() : user.vendorCode || '',
+    scriptMode:
+      patch.scriptMode !== undefined ? normalizeScriptMode(patch.scriptMode) : normalizeScriptMode(user.scriptMode),
   }
 
   users.set(userId, nextUser)
@@ -190,6 +199,7 @@ function toPublicUser(user) {
     status: ['inactive', 'suspended'].includes(user.status) ? user.status : 'active',
     vendorId: user.vendorId || '',
     vendorCode: user.vendorCode || '',
+    scriptMode: normalizeScriptMode(user.scriptMode),
     createdAt: user.createdAt,
   }
 }

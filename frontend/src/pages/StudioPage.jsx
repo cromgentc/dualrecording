@@ -312,7 +312,9 @@ function StudioPage({ sessionId, role, token, user, onLogout }) {
       setNextScript(payload.script || null)
       setCurrentScriptVisible(false)
       setActivity(
-        payload.script
+        payload.scriptMode === 'non-script'
+          ? 'Recording upload complete.'
+          : payload.script
           ? 'Recording upload complete. The next script is ready.'
           : 'All assigned scripts are complete. Please contact your admin for more work.',
       )
@@ -328,7 +330,9 @@ function StudioPage({ sessionId, role, token, user, onLogout }) {
         setNextScript(payload.script || null)
         setCurrentScriptVisible(false)
         setActivity(
-          payload.script
+          payload.scriptMode === 'non-script'
+            ? 'Recording upload complete.'
+            : payload.script
             ? 'Recording upload complete. The next script is ready.'
             : 'All assigned scripts are complete. Please contact your admin for more work.',
         )
@@ -595,6 +599,7 @@ function StudioPage({ sessionId, role, token, user, onLogout }) {
     if (
       !session ||
       session.recordingState !== 'ready' ||
+      session.scriptMode === 'non-script' ||
       nextScriptLoadedForSessionRef.current === session.id
     ) {
       return
@@ -754,7 +759,9 @@ function StudioPage({ sessionId, role, token, user, onLogout }) {
       setConnected(false)
       setRemoteReady(false)
       setCurrentScriptVisible(false)
-      await loadNextScriptPreview()
+      if (session?.scriptMode !== 'non-script') {
+        await loadNextScriptPreview()
+      }
     } catch (logoutError) {
       setError(logoutError.message)
     } finally {
@@ -884,7 +891,7 @@ function StudioPage({ sessionId, role, token, user, onLogout }) {
               </div>
             ) : null}
 
-            {!nextScript && !currentScriptVisible ? (
+            {session.scriptMode !== 'non-script' && !nextScript && !currentScriptVisible ? (
               <div className="info-card min-w-0 overflow-hidden border-amber-300/40">
                 <span className="eyebrow">No Pending Script</span>
                 <p className="mt-3 text-sm leading-6 text-stone-200">

@@ -31,6 +31,10 @@ function AdminPage({ authToken, user, onLogout }) {
   const [profileModal, setProfileModal] = useState(false)
   const [adminDropdownOpen, setAdminDropdownOpen] = useState(false)
   const [selectedRecordingGroup, setSelectedRecordingGroup] = useState('')
+  const [topbarVisible, setTopbarVisible] = useState(true)
+  const [selectedScriptType, setSelectedScriptType] = useState(null)
+  const [scriptTypeFilter, setScriptTypeFilter] = useState('all')
+  const [pendingScriptModes, setPendingScriptModes] = useState({})
   const [vendorForm, setVendorForm] = useState({
     name: '',
     email: '',
@@ -58,6 +62,7 @@ function AdminPage({ authToken, user, onLogout }) {
     password: '123456',
     role: 'user',
     vendorId: '',
+    scriptMode: 'script',
   })
   const [bulkText, setBulkText] = useState('')
   const [scriptBulkText, setScriptBulkText] = useState('')
@@ -77,6 +82,24 @@ function AdminPage({ authToken, user, onLogout }) {
 
     return { live, complete, uploaded }
   }, [sessions])
+
+  const scriptTypeSummary = useMemo(() => {
+    const script = users.filter((item) => item.role === 'user' && item.scriptMode !== 'non-script').length
+    const nonScript = users.filter((item) => item.role === 'user' && item.scriptMode === 'non-script').length
+    return { all: script + nonScript, script, nonScript }
+  }, [users])
+
+  const visibleUsers = useMemo(() => {
+    if (scriptTypeFilter === 'script') {
+      return users.filter((item) => item.role !== 'user' || item.scriptMode !== 'non-script')
+    }
+
+    if (scriptTypeFilter === 'non-script') {
+      return users.filter((item) => item.role === 'user' && item.scriptMode === 'non-script')
+    }
+
+    return users
+  }, [scriptTypeFilter, users])
 
   const liveSessions = useMemo(
     () => sessions.filter((session) => session.recordingState === 'recording'),
@@ -166,6 +189,11 @@ function AdminPage({ authToken, user, onLogout }) {
       })
 
     return users.reduce((lookup, item) => {
+      if (item.scriptMode === 'non-script') {
+        lookup[item.id] = { assigned: 0, pending: 0 }
+        return lookup
+      }
+
       const key = getUserContactKey(item)
       const assigned = assignedCounts.get(key) || 0
       const completed = completedCounts.get(key) || 0
@@ -290,6 +318,7 @@ function AdminPage({ authToken, user, onLogout }) {
         password: '123456',
         role: 'user',
         vendorId: '',
+        scriptMode: 'script',
       })
       setUserModal(null)
       showToast('User register ho gaya.')
@@ -300,9 +329,14 @@ function AdminPage({ authToken, user, onLogout }) {
 
   async function handleBulkCreate(event) {
     event.preventDefault()
-    const rows = parseCsvRows(bulkText, ['name', 'email', 'mobile', 'password', 'vendorId']).map(
-      (row) => ({ ...row, password: row.password || '123456', role: 'user' }),
-    )
+    const rows = parseCsvRows(bulkText, [
+      'name',
+      'email',
+      'mobile',
+      'password',
+      'vendorId',
+      'scriptMode',
+    ]).map((row) => ({ ...row, password: row.password || '123456', role: 'user' }))
 
     try {
       const result = await apiRequest('/api/admin/users/bulk', {
@@ -333,6 +367,48 @@ function AdminPage({ authToken, user, onLogout }) {
       setUsers((current) => current.map((item) => (item.id === userId ? nextUser : item)))
       showToast('User update ho gaya.')
     } catch (error) {
+      showToast(error.message, 'error')
+    }
+  }
+
+  async function handleUpdateUserScriptType(userId, scriptMode) {
+    const currentUser = users.find((item) => item.id === userId)
+    const previousScriptMode = currentUser?.scriptMode || 'script'
+    setSelectedScriptType({
+      name: currentUser?.name || currentUser?.mobile || userId,
+      mode: scriptMode === 'non-script' ? 'Non Script' : 'Script',
+    })
+
+    setUsers((current) =>
+      current.map((item) => (item.id === userId ? { ...item, scriptMode } : item)),
+    )
+    setPendingScriptModes((current) => ({ ...current, [userId]: scriptMode }))
+
+    try {
+      const nextUser = await apiRequest(`/api/admin/users/${userId}`, {
+        method: 'POST',
+        authToken,
+        body: JSON.stringify({ scriptMode }),
+      })
+      setUsers((current) => current.map((item) => (item.id === userId ? nextUser : item)))
+      setPendingScriptModes((current) => {
+        const nextPending = { ...current }
+        delete nextPending[userId]
+        return nextPending
+      })
+      showToast('Script type update ho gaya.')
+    } catch (error) {
+      setUsers((current) =>
+        current.map((item) =>
+          item.id === userId ? { ...item, scriptMode: previousScriptMode } : item,
+        ),
+      )
+      setPendingScriptModes((current) => {
+        const nextPending = { ...current }
+        delete nextPending[userId]
+        return nextPending
+      })
+      setSelectedScriptType(null)
       showToast(error.message, 'error')
     }
   }
@@ -561,9 +637,11 @@ function AdminPage({ authToken, user, onLogout }) {
             setRecordingView('completed')
             setActiveTab('recording')
           }}
+          onScriptTypeChange={handleUpdateUserScriptType}
           onUpdateUser={handleUpdateUser}
+          pendingScriptModes={pendingScriptModes}
           scriptStatsByUserId={scriptStatsByContact}
-          users={users}
+          users={visibleUsers}
           vendorNameById={vendorNameById}
           vendors={vendors}
         />
@@ -816,64 +894,135 @@ function AdminPage({ authToken, user, onLogout }) {
         </aside>
 
         <div className="min-w-0">
-          <header className="glass-card relative z-50 overflow-visible p-5">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-              <div>
-                <p className="eyebrow">Admin Dashboard</p>
-              </div>
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                <button
-                  className="secondary-btn"
-                  type="button"
-                  onClick={() => loadDashboard({ quiet: false })}
-                  disabled={refreshing}
-                >
-                  {refreshing ? 'Refreshing...' : 'Refresh'}
-                </button>
-                <div className="relative">
+          {topbarVisible ? (
+            <header className="glass-card relative z-50 overflow-visible p-5">
+              <div className="flex min-w-0 flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+                <div className="min-w-0">
+                  <p className="eyebrow">Admin Dashboard</p>
+                  <div className="mt-2 flex min-w-0 flex-wrap gap-2 text-xs font-semibold text-stone-200">
+                    <button
+                      className={
+                        scriptTypeFilter === 'all'
+                          ? 'max-w-full truncate rounded-full bg-amber-300/20 px-3 py-1 text-amber-100'
+                          : 'max-w-full truncate rounded-full bg-white/8 px-3 py-1 transition hover:bg-white/12'
+                      }
+                      type="button"
+                      onClick={() => {
+                        setScriptTypeFilter('all')
+                        setActiveTab('users')
+                      }}
+                    >
+                      All: {scriptTypeSummary.all}
+                    </button>
+                    <button
+                      className={
+                        scriptTypeFilter === 'script'
+                          ? 'max-w-full truncate rounded-full bg-amber-300/20 px-3 py-1 text-amber-100'
+                          : 'max-w-full truncate rounded-full bg-white/8 px-3 py-1 transition hover:bg-white/12'
+                      }
+                      type="button"
+                      onClick={() => {
+                        setScriptTypeFilter('script')
+                        setActiveTab('users')
+                      }}
+                    >
+                      Script: {scriptTypeSummary.script}
+                    </button>
+                    <button
+                      className={
+                        scriptTypeFilter === 'non-script'
+                          ? 'max-w-full truncate rounded-full bg-amber-300/20 px-3 py-1 text-amber-100'
+                          : 'max-w-full truncate rounded-full bg-white/8 px-3 py-1 transition hover:bg-white/12'
+                      }
+                      type="button"
+                      onClick={() => {
+                        setScriptTypeFilter('non-script')
+                        setActiveTab('users')
+                      }}
+                    >
+                      Non Script: {scriptTypeSummary.nonScript}
+                    </button>
+                    {selectedScriptType ? (
+                      <span className="max-w-full truncate rounded-full bg-amber-300/15 px-3 py-1 text-amber-100">
+                        Selected: {selectedScriptType.name} - {selectedScriptType.mode}
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+                <div className="flex min-w-0 flex-wrap gap-3 sm:items-center xl:justify-end">
                   <button
-                    className="flex min-w-36 items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/6 px-4 py-3 text-left transition hover:bg-white/10"
+                    className="secondary-btn shrink-0"
                     type="button"
-                    onClick={() => setAdminDropdownOpen((current) => !current)}
+                    onClick={() => loadDashboard({ quiet: false })}
+                    disabled={refreshing}
                   >
-                    <span>
-                      <span className="eyebrow block">Admin</span>
-                      <strong className="block text-sm font-semibold text-stone-50">
-                        {user.name}
-                      </strong>
-                    </span>
-                    <span className="text-xs text-stone-300">
-                      {adminDropdownOpen ? 'Up' : 'Down'}
-                    </span>
+                    {refreshing ? 'Refreshing...' : 'Refresh'}
                   </button>
-                  {adminDropdownOpen ? (
-                    <div className="absolute right-0 top-full z-[100] mt-2 w-56 overflow-hidden rounded-2xl border border-white/10 bg-slate-950/95 p-2 shadow-2xl backdrop-blur-xl">
-                      <button
-                        className="flex w-full items-center justify-start rounded-xl px-4 py-3 text-left text-sm font-semibold text-stone-100 transition hover:bg-white/10"
-                        type="button"
-                        onClick={() => {
-                          setAdminDropdownOpen(false)
-                          setProfileModal(true)
-                        }}
-                      >
-                        Edit Profile
-                      </button>
-                      <button
-                        className="flex w-full items-center justify-start rounded-xl px-4 py-3 text-left text-sm font-semibold text-rose-200 transition hover:bg-rose-400/15"
-                        type="button"
-                        onClick={() => {
-                          setAdminDropdownOpen(false)
-                          onLogout()
-                        }}
-                      >
-                        Logout
-                      </button>
-                    </div>
-                  ) : null}
+                  <button
+                    className="secondary-btn shrink-0"
+                    type="button"
+                    onClick={() => setTopbarVisible(false)}
+                  >
+                    Hide Topbar
+                  </button>
+                  <div className="relative min-w-0">
+                    <button
+                      className="flex min-w-0 max-w-full items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/6 px-4 py-3 text-left transition hover:bg-white/10 sm:min-w-36"
+                      type="button"
+                      onClick={() => setAdminDropdownOpen((current) => !current)}
+                    >
+                      <span className="min-w-0">
+                        <span className="eyebrow block">Admin</span>
+                        <strong className="block truncate text-sm font-semibold text-stone-50">
+                          {user.name}
+                        </strong>
+                      </span>
+                      <span className="shrink-0 text-xs text-stone-300">
+                        {adminDropdownOpen ? 'Up' : 'Down'}
+                      </span>
+                    </button>
+                    {adminDropdownOpen ? (
+                      <div className="absolute right-0 top-full z-[100] mt-2 w-56 overflow-hidden rounded-2xl border border-white/10 bg-slate-950/95 p-2 shadow-2xl backdrop-blur-xl">
+                        <button
+                          className="flex w-full items-center justify-start rounded-xl px-4 py-3 text-left text-sm font-semibold text-stone-100 transition hover:bg-white/10"
+                          type="button"
+                          onClick={() => {
+                            setAdminDropdownOpen(false)
+                            setProfileModal(true)
+                          }}
+                        >
+                          Edit Profile
+                        </button>
+                        <button
+                          className="flex w-full items-center justify-start rounded-xl px-4 py-3 text-left text-sm font-semibold text-rose-200 transition hover:bg-rose-400/15"
+                          type="button"
+                          onClick={() => {
+                            setAdminDropdownOpen(false)
+                            onLogout()
+                          }}
+                        >
+                          Logout
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
               </div>
+            </header>
+          ) : (
+            <div className="glass-card flex min-w-0 items-center justify-between gap-3 p-3">
+              <span className="min-w-0 truncate text-sm font-semibold text-stone-100">
+                Topbar hidden
+              </span>
+              <button
+                className="secondary-btn shrink-0 px-4 py-2"
+                type="button"
+                onClick={() => setTopbarVisible(true)}
+              >
+                Unhide Topbar
+              </button>
             </div>
-          </header>
+          )}
 
           <div className="mt-6">
             {activeTab === 'dashboard' ? renderDashboard() : null}
@@ -981,6 +1130,19 @@ function UserFormFields({ form, setForm, vendors }) {
           ))}
         </select>
       </label>
+      <label className="block">
+        <span className="eyebrow">Script Type</span>
+        <select
+          className="field mt-2"
+          value={form.scriptMode || 'script'}
+          onChange={(event) =>
+            setForm((current) => ({ ...current, scriptMode: event.target.value }))
+          }
+        >
+          <option value="script">Script</option>
+          <option value="non-script">Non Script</option>
+        </select>
+      </label>
     </div>
   )
 }
@@ -1019,7 +1181,7 @@ function UserRegisterModal({
             buttonLabel="Bulk Register Users"
             onFileUpload={onBulkFileUpload}
             onSubmit={onBulkSubmit}
-            placeholder="name,email,mobile,password,vendorId"
+            placeholder="name,email,mobile,password,vendorId,scriptMode"
             text={bulkText}
             setText={setBulkText}
           />
@@ -1470,7 +1632,9 @@ function ParticipantActivity({ nowMs, participant, title }) {
 function UsersManagementTable({
   onDeleteUser,
   onOpenRecordings,
+  onScriptTypeChange,
   onUpdateUser,
+  pendingScriptModes,
   scriptStatsByUserId,
   users,
   vendorNameById,
@@ -1491,6 +1655,7 @@ function UsersManagementTable({
                 'Mobile',
                 'Assigned Scripts',
                 'Pending Scripts',
+                'Script Type',
                 'Status',
                 'Vendor Code',
                 'Vendor',
@@ -1524,6 +1689,22 @@ function UsersManagementTable({
                   </td>
                   <td className="px-4 py-3">{scriptStats.assigned}</td>
                   <td className="px-4 py-3">{scriptStats.pending}</td>
+                  <td className="px-4 py-3">
+                    {isAdminUser ? (
+                      <span className="text-stone-400">-</span>
+                    ) : (
+                      <select
+                        className="field min-w-40 py-2"
+                        value={pendingScriptModes[item.id] || item.scriptMode || 'script'}
+                        onChange={(event) =>
+                          onScriptTypeChange(item.id, event.target.value)
+                        }
+                      >
+                        <option value="script">Script</option>
+                        <option value="non-script">Non Script</option>
+                      </select>
+                    )}
+                  </td>
                   <td className="px-4 py-3">
                     <StatusBadge status={item.status} />
                   </td>

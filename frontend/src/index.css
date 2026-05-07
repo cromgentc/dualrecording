@@ -98,6 +98,22 @@
     @apply w-full rounded-2xl border border-white/10 bg-stone-100/10 px-4 py-3 text-stone-50 outline-none transition focus:border-amber-300/60 focus:ring-2 focus:ring-amber-300/30;
   }
 
+  select.field {
+    color-scheme: dark;
+    background-color: oklab(0.23 -0.02 -0.03 / 0.92);
+    color: oklab(0.92 0.01 0.02);
+  }
+
+  select.field option {
+    background-color: oklab(0.18 -0.02 -0.03);
+    color: oklab(0.92 0.01 0.02);
+  }
+
+  select.field option:checked {
+    background-color: oklab(0.73 0.06 0.13);
+    color: oklab(0.18 0.01 0.02);
+  }
+
   .primary-btn {
     @apply inline-flex items-center justify-center rounded-full bg-linear-to-r from-amber-300 to-orange-500 px-5 py-3 font-semibold text-stone-950 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0;
   }

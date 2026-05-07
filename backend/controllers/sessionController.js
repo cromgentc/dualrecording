@@ -89,7 +89,10 @@ async function getAssignedScript(req, res) {
     return
   }
 
-  sendJson(res, 200, { script: getNextScriptForUser(auth.user) })
+  sendJson(res, 200, {
+    script: getNextScriptForUser(auth.user),
+    scriptMode: auth.user.scriptMode === 'non-script' ? 'non-script' : 'script',
+  })
 }
 
 async function getNextSessionScript(req, res, context, params) {
@@ -111,10 +114,17 @@ async function getNextSessionScript(req, res, context, params) {
     return
   }
 
-  sendJson(res, 200, { script: getNextScriptForUser(owner) })
+  sendJson(res, 200, {
+    script: getNextScriptForUser(owner),
+    scriptMode: owner.scriptMode === 'non-script' ? 'non-script' : 'script',
+  })
 }
 
 function getNextScriptForUser(user) {
+  if (user?.scriptMode === 'non-script') {
+    return null
+  }
+
   const userScripts = listScriptsForUser(user)
   const completedScriptIds = new Set(
     listAllSessions()

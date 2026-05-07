@@ -53,6 +53,10 @@ function requireAdminOrVendor(req, res) {
   return auth
 }
 
+function normalizeScriptMode(value) {
+  return value === 'non-script' ? 'non-script' : 'script'
+}
+
 async function listAdminUsers(req, res) {
   const auth = requireAdminOrVendor(req, res)
   if (!auth) {
@@ -76,6 +80,7 @@ function createUserFromPayload(payload) {
   const vendorId = String(payload.vendorId || '').trim()
   const vendor = vendorId ? getVendorById(vendorId) : null
   const vendorCode = vendor?.code || String(payload.vendorCode || '').trim()
+  const scriptMode = normalizeScriptMode(payload.scriptMode)
 
   if (!name || !email || !isValidMobile(mobile) || password.length < 6) {
     return { error: 'Name, valid email, valid mobile, and 6 character password required.' }
@@ -86,16 +91,22 @@ function createUserFromPayload(payload) {
   }
 
   return {
-    user: createUser({ name, email, mobile, password, role, vendorId, vendorCode }),
+    user: createUser({ name, email, mobile, password, role, vendorId, vendorCode, scriptMode }),
   }
 }
 
 async function createAdminUser(req, res) {
-  if (!requireAdmin(req, res)) {
+  const auth = requireAdminOrVendor(req, res)
+  if (!auth) {
     return
   }
 
   const body = await readJsonBody(req)
+  if (auth.user.role === 'vendor') {
+    body.role = 'user'
+    body.vendorId = auth.user.vendorId
+    body.vendorCode = auth.user.vendorCode
+  }
   const result = createUserFromPayload(body)
   if (result.error) {
     sendJson(res, 400, { error: result.error })
@@ -106,7 +117,8 @@ async function createAdminUser(req, res) {
 }
 
 async function bulkCreateAdminUsers(req, res) {
-  if (!requireAdmin(req, res)) {
+  const auth = requireAdminOrVendor(req, res)
+  if (!auth) {
     return
   }
 
@@ -116,7 +128,11 @@ async function bulkCreateAdminUsers(req, res) {
   const errors = []
 
   rows.forEach((row, index) => {
-    const result = createUserFromPayload(row)
+    const payload =
+      auth.user.role === 'vendor'
+        ? { ...row, role: 'user', vendorId: auth.user.vendorId, vendorCode: auth.user.vendorCode }
+        : row
+    const result = createUserFromPayload(payload)
     if (result.error) {
       errors.push({ index: index + 1, error: result.error })
       return
@@ -128,20 +144,36 @@ async function bulkCreateAdminUsers(req, res) {
 }
 
 async function updateAdminUser(req, res, _context, params) {
-  if (!requireAdmin(req, res)) {
+  const auth = requireAdminOrVendor(req, res)
+  if (!auth) {
     return
   }
 
   const body = await readJsonBody(req)
+  const existingUser = getAllUsers().get(params.userId)
+  if (!existingUser) {
+    sendJson(res, 404, { error: 'User not found.' })
+    return
+  }
+
+  if (auth.user.role === 'vendor' && existingUser.vendorId !== auth.user.vendorId) {
+    sendJson(res, 403, { error: 'You can update only your vendor users.' })
+    return
+  }
+
   const patch = {}
 
-  if (body.vendorId !== undefined) {
+  if (body.vendorId !== undefined && auth.user.role === 'admin') {
     patch.vendorId = String(body.vendorId || '').trim()
     patch.vendorCode = patch.vendorId ? getVendorById(patch.vendorId)?.code || '' : ''
   }
 
-  if (body.status !== undefined) {
+  if (body.status !== undefined && auth.user.role === 'admin') {
     patch.status = ['inactive', 'suspended'].includes(body.status) ? body.status : 'active'
+  }
+
+  if (body.scriptMode !== undefined) {
+    patch.scriptMode = normalizeScriptMode(body.scriptMode)
   }
 
   ;['name', 'email', 'mobile'].forEach((key) => {
@@ -150,7 +182,7 @@ async function updateAdminUser(req, res, _context, params) {
     }
   })
 
-  if (body.role !== undefined) {
+  if (body.role !== undefined && auth.user.role === 'admin') {
     patch.role = ['admin', 'vendor'].includes(body.role) ? body.role : 'user'
   }
 
@@ -215,6 +247,7 @@ async function createAdminVendor(req, res) {
         role: 'vendor',
         vendorId: vendor.id,
         vendorCode: vendor.code,
+        scriptMode: normalizeScriptMode(body.scriptMode),
       })
     }
   }
@@ -250,6 +283,7 @@ async function bulkCreateAdminVendors(req, res) {
         role: 'vendor',
         vendorId: vendor.id,
         vendorCode: vendor.code,
+        scriptMode: normalizeScriptMode(row.scriptMode),
       })
     }
   })
