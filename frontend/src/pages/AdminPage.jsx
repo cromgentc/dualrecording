@@ -222,7 +222,13 @@ function AdminPage({ authToken, user, onLogout }) {
 
         startTransition(() => {
           setSessions(sessionData)
-          setUsers(userData)
+          setUsers(
+            userData.map((item) =>
+              pendingScriptModes[item.id]
+                ? { ...item, scriptMode: pendingScriptModes[item.id] }
+                : item,
+            ),
+          )
           setVendors(vendorData)
           setScripts(scriptData)
           setSystemStats({
@@ -240,7 +246,7 @@ function AdminPage({ authToken, user, onLogout }) {
         setRefreshing(false)
       }
     },
-    [authToken],
+    [authToken, pendingScriptModes],
   )
 
   useEffect(() => {
@@ -390,13 +396,18 @@ function AdminPage({ authToken, user, onLogout }) {
         authToken,
         body: JSON.stringify({ scriptMode }),
       })
-      setUsers((current) => current.map((item) => (item.id === userId ? nextUser : item)))
-      setPendingScriptModes((current) => {
-        const nextPending = { ...current }
-        delete nextPending[userId]
-        return nextPending
-      })
-      showToast('Script type update ho gaya.')
+      const savedUser = { ...nextUser, scriptMode: nextUser.scriptMode || scriptMode }
+      setUsers((current) => current.map((item) => (item.id === userId ? savedUser : item)))
+      if (nextUser.scriptMode === scriptMode) {
+        setPendingScriptModes((current) => {
+          const nextPending = { ...current }
+          delete nextPending[userId]
+          return nextPending
+        })
+        showToast('Script type update ho gaya.')
+      } else {
+        showToast('Script type UI mein change ho gaya. Backend restart/deploy ke baad permanent save hoga.', 'error')
+      }
     } catch (error) {
       setUsers((current) =>
         current.map((item) =>
