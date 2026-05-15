@@ -23,33 +23,35 @@ function SessionCard({
 
   if (userRoomView) {
     return (
-      <article className="glass-card overflow-hidden">
-        <div className="border-b border-white/10 bg-white/6 p-5 sm:p-6">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      <article className="glass-card w-full min-w-0 overflow-hidden">
+        <div className="border-b border-white/10 bg-white/6 p-3 sm:p-6">
+          <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
-              <span className="inline-flex max-w-full items-center rounded-full border border-white/10 bg-white/8 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-stone-300">
+              <span className="inline-flex max-w-full items-center rounded-full border border-white/10 bg-white/8 px-3 py-1 text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-stone-300 sm:text-[0.68rem] sm:tracking-[0.18em]">
                 <span className="truncate">ID {session.id}</span>
               </span>
-              <h3 className="mt-4 text-2xl font-semibold tracking-tight text-stone-50 sm:text-3xl">
+              <h3 className="mt-3 max-w-full break-words text-xl font-semibold leading-tight tracking-tight text-stone-50 sm:mt-4 sm:text-3xl">
                 {session.title}
               </h3>
             </div>
-            <StatusPill tone={session.recordingState === 'ready' ? 'success' : 'accent'}>
-              {formatState(session.recordingState)}
-            </StatusPill>
+            <div className="self-start">
+              <StatusPill tone={session.recordingState === 'ready' ? 'success' : 'accent'}>
+                {formatState(session.recordingState)}
+              </StatusPill>
+            </div>
           </div>
         </div>
 
-        <div className="grid gap-4 p-5 sm:p-6 lg:grid-cols-[0.9fr_1.1fr]">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+        <div className="grid min-w-0 gap-3 p-3 sm:p-6 lg:grid-cols-[0.9fr_1.1fr]">
+          <div className="grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-1">
             {['host', 'guest'].map((role) => {
               const participant = session.participants[role]
               return (
-                <div className="info-card" key={role}>
+                <div className="info-card min-w-0 px-3 py-3" key={role}>
                   <span className="eyebrow">
                     {role === 'host' ? 'Speaker 1' : 'Speaker 2'}
                   </span>
-                  <strong className="mt-2 block truncate text-sm font-semibold text-stone-50">
+                  <strong className="mt-2 block max-w-full break-words text-sm font-semibold text-stone-50">
                     {participant.label}
                   </strong>
                   <div className="mt-3">
@@ -62,9 +64,9 @@ function SessionCard({
             })}
           </div>
 
-          <div className="grid content-start gap-3">
+          <div className="grid min-w-0 content-start gap-3">
             <a
-              className="primary-btn min-h-14 text-center"
+              className="primary-btn min-h-12 w-full text-center sm:min-h-14"
               href={session.links.host}
               rel="noreferrer"
             >

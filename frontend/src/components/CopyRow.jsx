@@ -16,17 +16,19 @@ function CopyRow({ label, value, compact = false }) {
   }
 
   return (
-    <div className="info-card flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+    <div className="info-card flex min-w-0 flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
       <div className="min-w-0">
         <span className="eyebrow"> {label} </span>
         <strong
-          className={`mt-2 block text-sm font-semibold text-stone-50 ${compact ? 'truncate' : 'break-all'}`}
+          className={`mt-2 block text-sm font-semibold text-stone-50 ${
+            compact ? 'break-all lg:truncate lg:break-normal' : 'break-all'
+          }`}
           title={value}
         >
           {value}
         </strong>
       </div>
-      <button type="button" className="secondary-btn shrink-0" onClick={handleCopy}>
+      <button type="button" className="secondary-btn min-h-11 w-full shrink-0 sm:w-auto" onClick={handleCopy}>
         {copied ? 'Copied' : 'Copy'}
       </button>
     </div>

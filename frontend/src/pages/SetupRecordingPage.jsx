@@ -108,15 +108,15 @@ function SetupRecordingPage({ authToken, user, onLogout }) {
     : []
 
   return (
-    <main className="page-shell py-8">
+    <main className="page-shell py-4 sm:py-8">
       <ToastMessage message={message} onClose={() => setMessage('')} />
       <UserBar user={user} onLogout={onLogout} />
 
       {view === 'create' ? (
-        <form className="glass-card mx-auto max-w-2xl p-7" onSubmit={handleCreateSession}>
+        <form className="glass-card mx-auto max-w-2xl p-4 sm:p-7" onSubmit={handleCreateSession}>
           <div>
             <p className="eyebrow">Create Session</p>
-            <h2 className="text-3xl font-semibold tracking-tight text-stone-50">
+            <h2 className="text-2xl font-semibold tracking-tight text-stone-50 sm:text-3xl">
               Setup your recording room
             </h2>
             {assignedScript ? (
@@ -172,12 +172,12 @@ function SetupRecordingPage({ authToken, user, onLogout }) {
         </form>
       ) : (
         <section>
-          <div className="glass-card mb-5 p-5 sm:p-6">
+          <div className="glass-card mb-4 p-4 sm:mb-5 sm:p-6">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
               <div>
                 <p className="eyebrow">My Sessions</p>
-                <h2 className="mt-2 text-3xl font-semibold tracking-tight text-stone-50">
-                Your recording rooms
+                <h2 className="mt-2 text-2xl font-semibold tracking-tight text-stone-50 sm:text-3xl">
+                  Your recording rooms
                 </h2>
               </div>
               <button
