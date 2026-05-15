@@ -132,7 +132,7 @@ function AuthPage({ onAuthenticated }) {
       }))
       setOtpPreview(payload.devOtpPreview || null)
       setForgotStep('verify')
-      setMessage('OTP sent successfully. Verification ke liye next step par jaiye.')
+      setMessage('OTP sent successfully. Continue to the next step for verification.')
     } catch (error) {
       setMessage(error.message)
     } finally {

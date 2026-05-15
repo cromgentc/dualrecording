@@ -46,6 +46,7 @@ function StudioPage({ sessionId, role, token, user, onLogout }) {
   const isHost = role === 'host'
   const otherRole = isHost ? 'guest' : 'host'
   const defaultName = isHost ? 'Speaker 1' : 'Speaker 2'
+  const roleLabel = isHost ? 'Host' : 'Guest'
 
   const [session, setSession] = useState(null)
   const [displayName, setDisplayName] = useState(defaultName)
@@ -848,175 +849,206 @@ function StudioPage({ sessionId, role, token, user, onLogout }) {
       {user ? <UserBar user={user} onLogout={handleStudioLogout} compact /> : null}
 
       <section className="min-w-0">
-        <div className="glass-card min-w-0 overflow-hidden p-4 sm:p-7">
-          <div className="grid min-w-0 gap-3">
-            <div className="grid min-w-0 gap-3 rounded-3xl border border-white/10 bg-white/6 p-3">
-              <div className="min-w-0 rounded-2xl border border-white/10 bg-white/5 p-3">
-                <span className="eyebrow">Recording Upload</span>
-                <div className="mt-3 grid min-w-0 gap-3">
-                  {uploadTracks.map((track) => (
-                    <div className="min-w-0" key={track}>
-                      <div className="flex min-w-0 items-center justify-between gap-3 text-sm">
-                        <strong className="min-w-0 truncate font-semibold capitalize text-stone-50">
-                          {track === 'mixed' ? 'Mixed' : track}
-                        </strong>
-                        <span className="shrink-0 text-stone-300">
-                          {uploads[track] === 'done'
-                            ? '100%'
-                            : uploads[track] === 'uploading'
-                              ? `${uploadProgress[track]}%`
-                              : uploads[track] === 'error'
-                                ? 'Failed'
-                                : 'Waiting'}
-                        </span>
-                      </div>
-                      <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/10">
-                        <div
-                          className="h-full rounded-full bg-amber-300 transition-all"
-                          style={{ width: `${uploadProgress[track]}%` }}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="rounded-2xl bg-slate-950/80 px-3 py-4 text-center">
-                <strong className="block text-3xl font-semibold tabular-nums tracking-normal text-stone-50 sm:text-4xl">
-                  {countdown ? countdown : formatDuration(durationSeconds)}
-                </strong>
-                <span className="mt-1 block text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-stone-400">
-                  {recording ? 'Live' : 'Timer'}
-                </span>
-              </div>
-              <div className="grid min-w-0 grid-cols-2 gap-2">
-                <SpeakerMiniCard
-                  label="Speaker 1"
-                  participant={session.participants.host}
-                  active={role === 'host'}
-                />
-                <SpeakerMiniCard
-                  label="Speaker 2"
-                  participant={session.participants.guest}
-                  active={role === 'guest'}
-                />
-              </div>
+        <div className="glass-card min-w-0 overflow-hidden p-3 sm:p-6 lg:p-7">
+          <div className="flex min-w-0 flex-col gap-3 border-b border-white/10 pb-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <span className="eyebrow">{roleLabel} Recording Room</span>
+              <strong className="mt-2 block max-w-full break-words text-xl font-semibold leading-tight text-stone-50 sm:text-2xl">
+                {session.title || session.scriptTitle || 'Recording Session'}
+              </strong>
             </div>
-
-            {currentScriptVisible && session.scriptText ? (
-              <div className="info-card min-w-0 overflow-hidden">
-                <span className="eyebrow">{session.scriptTitle || 'Assigned Script'}</span>
-                <p className="mt-3 max-w-full whitespace-pre-wrap break-all text-left text-sm leading-6 text-stone-200 [overflow-wrap:anywhere]">
-                  {session.scriptText}
-                </p>
-              </div>
-            ) : null}
-
-            {scriptChoiceVisible ? (
-              <div className="info-card min-w-0 overflow-hidden border-amber-300/40">
-                <span className="eyebrow">Recording Uploaded</span>
-                <strong className="mt-2 block text-lg font-semibold text-stone-50">
-                  Next script mein jana chahte ho?
-                </strong>
-                <p className="mt-3 text-sm leading-6 text-stone-200">
-                  Next choose karoge to next script show hoga. Same choose karoge to isi
-                  script par recording dobara kar sakte ho.
-                </p>
-                <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                  <button
-                    className="secondary-btn"
-                    type="button"
-                    onClick={() => handleSameScriptChoice({ notifyPeer: true })}
-                  >
-                    Same Script
-                  </button>
-                  <button
-                    className="primary-btn"
-                    type="button"
-                    onClick={handleNextScriptChoice}
-                  >
-                    Next Script
-                  </button>
-                </div>
-              </div>
-            ) : null}
-
-            {nextScript ? (
-              <div className="info-card min-w-0 overflow-hidden border-amber-300/40">
-                <span className="eyebrow">Next Script</span>
-                <strong className="mt-2 block max-w-full break-all text-lg font-semibold text-stone-50 [overflow-wrap:anywhere]">
-                  {nextScript.title}
-                </strong>
-                <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                  <span className="text-sm text-stone-300">
-                    Speaker 1: {nextScript.speaker1Label || 'Speaker 1'}
-                  </span>
-                  <span className="text-sm text-stone-300">
-                    Speaker 2: {nextScript.speaker2Label || 'Speaker 2'}
-                  </span>
-                </div>
-                <p className="mt-3 max-w-full whitespace-pre-wrap break-all text-left text-sm leading-6 text-stone-200 [overflow-wrap:anywhere]">
-                  {nextScript.script}
-                </p>
-              </div>
-            ) : null}
-
-            {session.scriptMode !== 'non-script' && !nextScript && !currentScriptVisible ? (
-              <div className="info-card min-w-0 overflow-hidden border-amber-300/40">
-                <span className="eyebrow">No Pending Script</span>
-                <p className="mt-3 text-sm leading-6 text-stone-200">
-                  All assigned scripts are complete. Please contact your admin for more work.
-                </p>
-              </div>
-            ) : null}
-
-            <p className="text-sm text-stone-300">
-              {joined
-                ? connected
-                  ? remoteReady
-                    ? recording
-                      ? 'Recording is active. Keep speaking clearly.'
-                      : 'Live audio is connected. Recording has not started yet.'
-                    : 'Mic granted. Peer connected. Waiting for remote audio.'
-                  : 'Mic granted. Waiting for the peer connection.'
-                : 'Join the room to connect your microphone and start setup.'}
-            </p>
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
+              <span
+                className={`inline-flex items-center justify-center rounded-full px-3 py-2 text-xs font-semibold ${
+                  joined ? 'bg-emerald-300/15 text-emerald-100' : 'bg-white/8 text-stone-200'
+                }`}
+              >
+                {joined ? 'Joined' : 'Not Joined'}
+              </span>
+              <span
+                className={`inline-flex items-center justify-center rounded-full px-3 py-2 text-xs font-semibold ${
+                  recording ? 'bg-rose-400/20 text-rose-100' : 'bg-amber-300/12 text-amber-100'
+                }`}
+              >
+                {recording ? 'Live' : roleLabel}
+              </span>
+            </div>
           </div>
 
-          <button
-            className="primary-btn mt-6 w-full"
-            type="button"
-            onClick={handleJoin}
-            disabled={joinBusy || joined}
-          >
-            {joinBusy ? 'Joining...' : joined ? 'Joined' : 'Join Recording Room'}
-          </button>
+          <div className="mt-4 grid min-w-0 gap-4 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+            <div className="grid min-w-0 gap-3">
+              <div className="grid min-w-0 gap-3 rounded-3xl border border-white/10 bg-white/6 p-3 sm:p-4">
+                <div className="rounded-2xl bg-slate-950/80 px-3 py-5 text-center">
+                  <strong className="block text-4xl font-semibold tabular-nums tracking-normal text-stone-50 sm:text-5xl lg:text-4xl">
+                    {countdown ? countdown : formatDuration(durationSeconds)}
+                  </strong>
+                  <span className="mt-2 block text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-stone-400">
+                    {recording ? 'Recording Live' : 'Timer'}
+                  </span>
+                </div>
 
-          {isHost ? (
-            <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-              <button
-                className="secondary-btn flex-1"
-                type="button"
-                onClick={() => beginRecording({ notifyPeer: true })}
-                disabled={!joined || recording || Boolean(countdown)}
-              >
-                {countdown ? `Starting ${countdown}` : 'Start Recording'}
-              </button>
-              <button
-                className="danger-btn flex-1"
-                type="button"
-                onClick={() => stopRecording({ notifyPeer: true })}
-                disabled={!recording && !countdown}
-              >
-                Stop Recording
-              </button>
+                <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+                  <SpeakerMiniCard
+                    label="Speaker 1"
+                    participant={session.participants.host}
+                    active={role === 'host'}
+                  />
+                  <SpeakerMiniCard
+                    label="Speaker 2"
+                    participant={session.participants.guest}
+                    active={role === 'guest'}
+                  />
+                </div>
+
+                <div className="min-w-0 rounded-2xl border border-white/10 bg-white/5 p-3">
+                  <span className="eyebrow">Recording Upload</span>
+                  <div className="mt-3 grid min-w-0 gap-3">
+                    {uploadTracks.map((track) => (
+                      <div className="min-w-0" key={track}>
+                        <div className="flex min-w-0 items-center justify-between gap-3 text-sm">
+                          <strong className="min-w-0 truncate font-semibold capitalize text-stone-50">
+                            {track === 'mixed' ? 'Mixed' : track}
+                          </strong>
+                          <span className="shrink-0 text-stone-300">
+                            {uploads[track] === 'done'
+                              ? '100%'
+                              : uploads[track] === 'uploading'
+                                ? `${uploadProgress[track]}%`
+                                : uploads[track] === 'error'
+                                  ? 'Failed'
+                                  : 'Waiting'}
+                          </span>
+                        </div>
+                        <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/10">
+                          <div
+                            className="h-full rounded-full bg-amber-300 transition-all"
+                            style={{ width: `${uploadProgress[track]}%` }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-3xl border border-white/10 bg-white/5 p-3 sm:p-4">
+                <p className="text-sm leading-6 text-stone-300">
+                  {joined
+                    ? connected
+                      ? remoteReady
+                        ? recording
+                          ? 'Recording is active. Keep speaking clearly.'
+                          : 'Live audio is connected. Recording has not started yet.'
+                        : 'Mic granted. Peer connected. Waiting for remote audio.'
+                      : 'Mic granted. Waiting for the peer connection.'
+                    : 'Join the room to connect your microphone and start setup.'}
+                </p>
+
+                <button
+                  className="primary-btn mt-4 w-full"
+                  type="button"
+                  onClick={handleJoin}
+                  disabled={joinBusy || joined}
+                >
+                  {joinBusy ? 'Joining...' : joined ? 'Joined' : 'Join Recording Room'}
+                </button>
+
+                {isHost ? (
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+                    <button
+                      className="secondary-btn min-h-12"
+                      type="button"
+                      onClick={() => beginRecording({ notifyPeer: true })}
+                      disabled={!joined || recording || Boolean(countdown)}
+                    >
+                      {countdown ? `Starting ${countdown}` : 'Start Recording'}
+                    </button>
+                    <button
+                      className="danger-btn min-h-12"
+                      type="button"
+                      onClick={() => stopRecording({ notifyPeer: true })}
+                      disabled={!recording && !countdown}
+                    >
+                      Stop Recording
+                    </button>
+                  </div>
+                ) : (
+                  <p className="mt-3 rounded-2xl bg-white/6 px-3 py-3 text-sm leading-6 text-stone-300">
+                    Guest recording starts and stops from the host controls.
+                  </p>
+                )}
+              </div>
             </div>
-          ) : (
-            <p className="mt-4 text-sm text-stone-300">
-              Guest recording starts and stops from the host controls.
-            </p>
-          )}
 
+            <div className="grid min-w-0 content-start gap-3">
+              {currentScriptVisible && session.scriptText ? (
+                <div className="info-card min-w-0 overflow-hidden">
+                  <span className="eyebrow">{session.scriptTitle || 'Assigned Script'}</span>
+                  <p className="mt-3 max-w-full whitespace-pre-wrap break-words text-left text-sm leading-6 text-stone-200 [overflow-wrap:anywhere] sm:text-base sm:leading-7">
+                    {session.scriptText}
+                  </p>
+                </div>
+              ) : null}
+
+              {scriptChoiceVisible ? (
+                <div className="info-card min-w-0 overflow-hidden border-amber-300/40">
+                  <span className="eyebrow">Recording Uploaded</span>
+                  <strong className="mt-2 block text-lg font-semibold text-stone-50">
+                    Do you want to move to the next script?
+                  </strong>
+                  <p className="mt-3 text-sm leading-6 text-stone-200">
+                    Choose Next Script to open the next assignment, or choose Same Script to
+                    record this script again.
+                  </p>
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                    <button
+                      className="secondary-btn"
+                      type="button"
+                      onClick={() => handleSameScriptChoice({ notifyPeer: true })}
+                    >
+                      Same Script
+                    </button>
+                    <button
+                      className="primary-btn"
+                      type="button"
+                      onClick={handleNextScriptChoice}
+                    >
+                      Next Script
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+
+              {nextScript ? (
+                <div className="info-card min-w-0 overflow-hidden border-amber-300/40">
+                  <span className="eyebrow">Next Script</span>
+                  <strong className="mt-2 block max-w-full break-words text-lg font-semibold text-stone-50 [overflow-wrap:anywhere]">
+                    {nextScript.title}
+                  </strong>
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                    <span className="text-sm text-stone-300">
+                      Speaker 1: {nextScript.speaker1Label || 'Speaker 1'}
+                    </span>
+                    <span className="text-sm text-stone-300">
+                      Speaker 2: {nextScript.speaker2Label || 'Speaker 2'}
+                    </span>
+                  </div>
+                  <p className="mt-3 max-w-full whitespace-pre-wrap break-words text-left text-sm leading-6 text-stone-200 [overflow-wrap:anywhere] sm:text-base sm:leading-7">
+                    {nextScript.script}
+                  </p>
+                </div>
+              ) : null}
+
+              {session.scriptMode !== 'non-script' && !nextScript && !currentScriptVisible ? (
+                <div className="info-card min-w-0 overflow-hidden border-amber-300/40">
+                  <span className="eyebrow">No Pending Script</span>
+                  <p className="mt-3 text-sm leading-6 text-stone-200">
+                    All assigned scripts are complete. Please contact your admin for more work.
+                  </p>
+                </div>
+              ) : null}
+            </div>
+          </div>
         </div>
         <audio ref={audioRef} className="hidden" autoPlay playsInline />
       </section>
