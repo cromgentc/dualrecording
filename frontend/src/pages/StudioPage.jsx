@@ -61,6 +61,7 @@ function StudioPage({ sessionId, role, token, user, onLogout }) {
   const [durationSeconds, setDurationSeconds] = useState(0)
   const [nextScript, setNextScript] = useState(null)
   const [currentScriptVisible, setCurrentScriptVisible] = useState(true)
+  const [scriptChoiceVisible, setScriptChoiceVisible] = useState(false)
   const [uploads, setUploads] = useState({
     host: 'idle',
     guest: 'idle',
@@ -104,7 +105,9 @@ function StudioPage({ sessionId, role, token, user, onLogout }) {
         `/api/sessions/${sessionId}?role=${role}&token=${token}`,
       )
       setSession(nextSession)
-      setCurrentScriptVisible(nextSession.recordingState !== 'ready')
+      setCurrentScriptVisible((current) =>
+        nextSession.recordingState !== 'ready' ? true : current,
+      )
       setDisplayName((current) => current || nextSession.participants[role].label)
     } catch (loadError) {
       setError(loadError.message)
@@ -289,18 +292,6 @@ function StudioPage({ sessionId, role, token, user, onLogout }) {
     }, 1000)
   }
 
-  const scheduleStudioRefreshOnce = useCallback(() => {
-    const refreshKey = `studio-refresh-after-ready-${sessionId}`
-    if (window.sessionStorage.getItem(refreshKey)) {
-      return
-    }
-
-    window.sessionStorage.setItem(refreshKey, '1')
-    window.setTimeout(() => {
-      window.location.reload()
-    }, 1800)
-  }, [sessionId])
-
   const loadNextScriptPreview = useCallback(async () => {
     const authToken = window.localStorage.getItem(AUTH_TOKEN_KEY) || ''
 
@@ -311,6 +302,7 @@ function StudioPage({ sessionId, role, token, user, onLogout }) {
       )
       setNextScript(payload.script || null)
       setCurrentScriptVisible(false)
+      setScriptChoiceVisible(false)
       setActivity(
         payload.scriptMode === 'non-script'
           ? 'Recording upload complete.'
@@ -318,7 +310,6 @@ function StudioPage({ sessionId, role, token, user, onLogout }) {
           ? 'Recording upload complete. The next script is ready.'
           : 'All assigned scripts are complete. Please contact your admin for more work.',
       )
-      scheduleStudioRefreshOnce()
     } catch (nextScriptError) {
       if (!authToken) {
         setError(nextScriptError.message)
@@ -329,6 +320,7 @@ function StudioPage({ sessionId, role, token, user, onLogout }) {
         const payload = await apiRequest('/api/scripts/assigned', { authToken })
         setNextScript(payload.script || null)
         setCurrentScriptVisible(false)
+        setScriptChoiceVisible(false)
         setActivity(
           payload.scriptMode === 'non-script'
             ? 'Recording upload complete.'
@@ -336,12 +328,11 @@ function StudioPage({ sessionId, role, token, user, onLogout }) {
             ? 'Recording upload complete. The next script is ready.'
             : 'All assigned scripts are complete. Please contact your admin for more work.',
         )
-        scheduleStudioRefreshOnce()
       } catch (fallbackError) {
         setError(fallbackError.message)
       }
     }
-  }, [role, scheduleStudioRefreshOnce, sessionId, token])
+  }, [role, sessionId, token])
 
   function uploadBlobWithProgress(track, blob) {
     return new Promise((resolve, reject) => {
@@ -445,8 +436,8 @@ function StudioPage({ sessionId, role, token, user, onLogout }) {
 
     recordingStartCancelledRef.current = false
     autoStopTriggeredRef.current = false
-    nextScriptLoadedForSessionRef.current = ''
     setNextScript(null)
+    setScriptChoiceVisible(false)
     setCurrentScriptVisible(true)
     setUploads({
       host: 'idle',
@@ -483,6 +474,7 @@ function StudioPage({ sessionId, role, token, user, onLogout }) {
     Object.values(nextRecorders).forEach((recorder) => recorder.start(1000))
     recordersRef.current = nextRecorders
     recordingActiveRef.current = true
+    nextScriptLoadedForSessionRef.current = ''
     setRecording(true)
     startDurationTimer()
     setActivity('Recording is live. Browser tracks are being captured.')
@@ -568,6 +560,14 @@ function StudioPage({ sessionId, role, token, user, onLogout }) {
         window.history.replaceState({}, '', '/')
         window.location.assign('/')
       }
+      if (signal.payload?.action === 'same-script') {
+        handleSameScriptChoice()
+      }
+      if (signal.payload?.action === 'next-session' && signal.payload?.links?.guest) {
+        cleanupStudio()
+        setActivity('Host moved to the next script. Opening the next recording room.')
+        window.location.assign(signal.payload.links.guest)
+      }
     }
   })
 
@@ -596,18 +596,59 @@ function StudioPage({ sessionId, role, token, user, onLogout }) {
   }, [joined, role, sessionId, token])
 
   useEffect(() => {
+    const uploadsComplete = uploadTracks.every((track) => uploads[track] === 'done')
+
     if (
       !session ||
       session.recordingState !== 'ready' ||
       session.scriptMode === 'non-script' ||
+      !uploadsComplete ||
+      recording ||
+      countdown ||
       nextScriptLoadedForSessionRef.current === session.id
     ) {
       return
     }
 
     nextScriptLoadedForSessionRef.current = session.id
+    setScriptChoiceVisible(true)
+    setCurrentScriptVisible(true)
+    setActivity('Recording upload complete. Choose the same script or move to the next script.')
+  }, [countdown, recording, session, uploadTracks, uploads])
+
+  function handleSameScriptChoice({ notifyPeer = false } = {}) {
+    setNextScript(null)
+    setCurrentScriptVisible(true)
+    setScriptChoiceVisible(false)
+    setActivity('Same script selected. You can record this script again when ready.')
+
+    if (notifyPeer && isHost) {
+      void sendSignal('control', { action: 'same-script' })
+    }
+  }
+
+  async function handleNextScriptChoice() {
+    const authToken = window.localStorage.getItem(AUTH_TOKEN_KEY) || ''
+    if (isHost && authToken) {
+      try {
+        setScriptChoiceVisible(false)
+        setActivity('Creating the next script recording room.')
+        const nextSession = await apiRequest('/api/sessions', {
+          method: 'POST',
+          authToken,
+          body: JSON.stringify({}),
+        })
+        await sendSignal('control', { action: 'next-session', links: nextSession.links })
+        cleanupStudio()
+        window.location.assign(nextSession.links.host)
+        return
+      } catch (nextSessionError) {
+        setError(nextSessionError.message)
+      }
+    }
+
     void loadNextScriptPreview()
-  }, [loadNextScriptPreview, session])
+  }
 
   function createPeerConnection(stream) {
     // The peer connection carries only audio tracks for this recording room.
@@ -868,6 +909,35 @@ function StudioPage({ sessionId, role, token, user, onLogout }) {
                 <p className="mt-3 max-w-full whitespace-pre-wrap break-all text-left text-sm leading-6 text-stone-200 [overflow-wrap:anywhere]">
                   {session.scriptText}
                 </p>
+              </div>
+            ) : null}
+
+            {scriptChoiceVisible ? (
+              <div className="info-card min-w-0 overflow-hidden border-amber-300/40">
+                <span className="eyebrow">Recording Uploaded</span>
+                <strong className="mt-2 block text-lg font-semibold text-stone-50">
+                  Next script mein jana chahte ho?
+                </strong>
+                <p className="mt-3 text-sm leading-6 text-stone-200">
+                  Next choose karoge to next script show hoga. Same choose karoge to isi
+                  script par recording dobara kar sakte ho.
+                </p>
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <button
+                    className="secondary-btn"
+                    type="button"
+                    onClick={() => handleSameScriptChoice({ notifyPeer: true })}
+                  >
+                    Same Script
+                  </button>
+                  <button
+                    className="primary-btn"
+                    type="button"
+                    onClick={handleNextScriptChoice}
+                  >
+                    Next Script
+                  </button>
+                </div>
               </div>
             ) : null}
 
